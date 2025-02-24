@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: org.sfa.request.dto.RequestDTOTest
--------------------------------------------------------------------------------
-Tests run: 35, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.160 s -- in org.sfa.request.dto.RequestDTOTest

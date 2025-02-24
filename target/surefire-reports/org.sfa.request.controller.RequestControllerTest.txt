@@ -1,4 +1,0 @@
--------------------------------------------------------------------------------
-Test set: org.sfa.request.controller.RequestControllerTest
--------------------------------------------------------------------------------
-Tests run: 7, Failures: 0, Errors: 0, Skipped: 3, Time elapsed: 1.102 s -- in org.sfa.request.controller.RequestControllerTest

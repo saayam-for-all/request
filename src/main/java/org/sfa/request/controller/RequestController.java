@@ -1,6 +1,14 @@
 package org.sfa.request.controller;
 
 import org.sfa.request.constant.SaayamStatusCode;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.model.entity.Request;
 import org.sfa.request.dto.RequestDTO;
@@ -35,17 +43,110 @@ import java.util.Locale;
 @RestController
 @RequestMapping("/api/v1.0.0/requests/{requesterId}")
 @RequiredArgsConstructor
+@Tag(name = "Request", description = "Request management APIs")
 public class RequestController {
 
     private final RequestService requestService;
     private final LocaleResolver localeResolver;
+
     private final SQSService sqsService;
     private final MessageSource messageSource;
 
+    @Operation(
+            summary = "Create a new request",
+            description = "Creates a new request in the Saayam system for the specified requester. " +
+                    "The request includes details such as priority, type, category, and description."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "201",
+                    description = "Request successfully created",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = SaayamResponse.class),
+                            examples = @ExampleObject(
+                                    value = """
+                {
+                  "success": true,
+                  "statusCode": 201,
+                  "saayamCode": "SAAAYAM-1201",
+                  "message": "Request REQ-00-000-000-0017 has been successfully created and saved in the system",
+                  "data": {
+                    "requestId": "REQ-00-000-000-0017",
+                    "requesterId": "SID-00-000-000-0001",
+                    "requestStatus": {
+                      "requestStatusId": 1,
+                      "status": "CREATED",
+                      "description": "Request has been created",
+                      "lastUpdatedAt": "2024-07-15T19:37:44.653792Z"
+                    },
+                    "requestPriority": {
+                      "priorityId": 1,
+                      "priority": "LOW",
+                      "description": "Low priority",
+                      "lastUpdatedAt": "2024-07-15T19:37:44.65499Z"
+                    },
+                    "requestType": {
+                      "requestTypeId": 1,
+                      "type": "IN_PERSON",
+                      "description": "In-person request",
+                      "lastUpdatedAt": "2024-07-15T19:37:44.65581Z"
+                    },
+                    "requestCategory": {
+                      "requestCategoryId": 1,
+                      "category": "TECHNICAL_SUPPORT",
+                      "description": "Technical support request",
+                      "lastUpdatedAt": "2024-07-15T19:37:44.656694Z"
+                    },
+                    "requestFor": {
+                      "requestForId": 1,
+                      "description": "Request for self",
+                      "lastUpdatedAt": "2024-07-15T19:37:44.657513Z",
+                      "for": "SELF"
+                    },
+                    "city": "MD",
+                    "zipCode": "2288",
+                    "requestDescription": "Need technical support",
+                    "audioRequestDescription": "Audio description of the request",
+                    "submittedAt": "2024-07-16T23:03:21.4388422-04:00",
+                    "leadVolunteerUserId": 123,
+                    "servicedAt": null,
+                    "lastUpdatedAt": "2024-07-16T23:03:21.4388422-04:00"
+                  },
+                  "timestamp": "2024-07-16T23:03:21.471842-04:00"
+                }
+                """
+                            )
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid input",
+                    content = @Content(
+                            mediaType = "application/json",
+                            schema = @Schema(implementation = SaayamResponse.class),
+                            examples = @ExampleObject(
+                                    value = """
+                {
+                  "success": false,
+                  "statusCode": 400,
+                  "saayamCode": "SAAAYAM-1413",
+                  "message": "Invalid value: Unspecified or null value is not allowed for RequestPriority. Please provide a valid option",
+                  "timestamp": "2024-07-17T19:02:55.2930539-04:00"
+                }
+                """
+                            )
+                    )
+            )
+    })
     @PostMapping
     public ResponseEntity<SaayamResponse<Request>> createRequest(
+            @Parameter(description = "Unique identifier of the requester", required = true, example = "SID-00-000-000-0001")
             @PathVariable @NotNull String requesterId,
+
+            @Parameter(description = "Request details", required = true)
             @RequestBody @Valid RequestDTO requestDTO,
+
             HttpServletRequest request
     ) {
         requestDTO.setRequesterId(requesterId);

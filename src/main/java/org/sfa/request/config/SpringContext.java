@@ -2,6 +2,7 @@ package org.sfa.request.config;
 
 import lombok.Getter;
 import org.sfa.request.RequestApplication;
+import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
@@ -20,7 +21,7 @@ public class SpringContext {
 
     public static synchronized ApplicationContext getContext() {
         if (context == null) {
-            context = new AnnotationConfigApplicationContext(RequestApplication.class);
+            context = SpringApplication.run(RequestApplication.class);
         }
         return context;
     }

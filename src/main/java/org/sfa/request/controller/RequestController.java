@@ -49,8 +49,8 @@ public class RequestController {
     private final RequestService requestService;
     private final LocaleResolver localeResolver;
 
-    private final SQSService sqsService;
-    private final MessageSource messageSource;
+//    private final SQSService sqsService;
+//    private final MessageSource messageSource;
 
     @Operation(
             summary = "Create a new request",
@@ -223,20 +223,20 @@ public class RequestController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/{requestId}/sendToQueue")
-    public ResponseEntity<SaayamResponse<Void>> sendRequestToQueue(
-            @PathVariable @NotNull String requesterId,
-            @PathVariable @NotNull String requestId,
-            HttpServletRequest request
-    ) {
-        Locale locale = localeResolver.resolveLocale(request);
-        SaayamResponse<Request> requestResponse = requestService.getRequestById(requesterId, requestId, locale);
-        Request foundRequest = requestResponse.getData();
-
-        String message = JsonConverter.convertRequestToJson(foundRequest);
-        sqsService.sendMessage(message);
-
-        String successMessage = messageSource.getMessage("success.requestSentToQueue", new Object[]{requestId}, locale);
-        return ResponseEntity.ok(SaayamResponse.success(SaayamStatusCode.REQUEST_SENT_TO_QUEUE, successMessage, null));
-    }
+//    @PostMapping("/{requestId}/sendToQueue")
+//    public ResponseEntity<SaayamResponse<Void>> sendRequestToQueue(
+//            @PathVariable @NotNull String requesterId,
+//            @PathVariable @NotNull String requestId,
+//            HttpServletRequest request
+//    ) {
+//        Locale locale = localeResolver.resolveLocale(request);
+//        SaayamResponse<Request> requestResponse = requestService.getRequestById(requesterId, requestId, locale);
+//        Request foundRequest = requestResponse.getData();
+//
+//        String message = JsonConverter.convertRequestToJson(foundRequest);
+//        sqsService.sendMessage(message);
+//
+//        String successMessage = messageSource.getMessage("success.requestSentToQueue", new Object[]{requestId}, locale);
+//        return ResponseEntity.ok(SaayamResponse.success(SaayamStatusCode.REQUEST_SENT_TO_QUEUE, successMessage, null));
+//    }
 }

@@ -37,7 +37,7 @@ import java.util.Locale;
  */
 @Validated
 @RestController
-@RequestMapping("/api/v1.0.0/requests/{requesterId}")
+@RequestMapping("/dev/requests/v0.0.1/controller/{requesterId}")
 @RequiredArgsConstructor
 @Tag(name = "Request", description = "Request management APIs")
 public class RequestController {

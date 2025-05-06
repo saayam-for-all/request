@@ -20,12 +20,12 @@ public class Comment {
 
     @NotBlank
     @Size(max = 100)
-    @Column(name= "author_name", nullable = false, columnDefinition = "VARCHAR(255)", length = 100)
+    @Column(name= "author_name", nullable = false, columnDefinition = "VARCHAR(255)")
     private String authorName;
 
     @NotBlank
     @Size(max = 500)
-    @Column(name= "comment_text", nullable = false, columnDefinition = "VARCHAR(255)", length = 500)
+    @Column(name= "comment_text", nullable = false, columnDefinition = "VARCHAR(255)")
     private String commentText;
 
     @ManyToOne

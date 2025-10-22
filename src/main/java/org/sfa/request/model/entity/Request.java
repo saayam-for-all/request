@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 
 import java.io.Serializable;
 import java.time.ZonedDateTime;
+import java.util.List;
 
 /**
  * ClassName: Request
@@ -81,6 +82,9 @@ public class Request implements Serializable {
             foreignKey = @ForeignKey(name = "fk_request_for_id")
     )
     private RequestFor requestFor;
+
+    @OneToMany(mappedBy = "request", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<Comment> comments;
 
     @Column(name = "city_name", columnDefinition = "VARCHAR(255)")
     private String city;

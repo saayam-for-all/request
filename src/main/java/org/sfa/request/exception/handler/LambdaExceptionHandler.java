@@ -3,13 +3,14 @@ package org.sfa.request.exception.handler;
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
+import org.sfa.request.config.ObjectMapperConfig;
 import org.sfa.request.config.SpringContext;
 import org.sfa.request.constant.SaayamStatusCode;
 import org.sfa.request.exception.types.*;
 import org.sfa.request.response.SaayamResponse;
 import org.springframework.context.MessageSource;
 import org.springframework.http.HttpStatus;
-import lombok.extern.slf4j.Slf4j;
 
 import java.util.Locale;
 
@@ -25,7 +26,7 @@ import java.util.Locale;
 @Slf4j
 public class LambdaExceptionHandler {
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final ObjectMapper objectMapper = ObjectMapperConfig.getObjectMapper();
     private static final MessageSource messageSource = SpringContext.getContext().getBean(MessageSource.class);
 
     public static APIGatewayProxyResponseEvent handleException(Exception e, Context context, Locale locale) {

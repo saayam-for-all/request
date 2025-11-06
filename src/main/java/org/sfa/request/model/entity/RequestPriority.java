@@ -1,7 +1,6 @@
 package org.sfa.request.model.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.sfa.request.model.enums.RequestPriorityEnum;
 import lombok.*;
 import jakarta.persistence.*;
 
@@ -15,6 +14,7 @@ import java.util.Set;
 @Entity(name = "RequestPriority")
 @Table(
         name = "request_priority",
+        schema = "virginia_dev_saayam_rdbms",
         uniqueConstraints = {
                 @UniqueConstraint(name = "request_priority_id_unique", columnNames = "request_priority_id")
         }
@@ -22,14 +22,13 @@ import java.util.Set;
 public class RequestPriority {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "request_priority_id", updatable = false)
+    @Column(name = "req_priority_id", updatable = false)
     private Integer priorityId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "request_priority", nullable = false, columnDefinition = "VARCHAR(255)")
-    private RequestPriorityEnum priority;
+    @Column(name = "req_priority", nullable = false, columnDefinition = "VARCHAR(255)")
+    private String priority;
 
-    @Column(name = "request_priority_desc", columnDefinition = "VARCHAR(255)")
+    @Column(name = "req_priority_desc", columnDefinition = "VARCHAR(255)")
     private String description;
 
     @Column(name = "last_updated_date", columnDefinition = "TIMESTAMP")
@@ -44,4 +43,3 @@ public class RequestPriority {
     )
     private Set<Request> requests = new HashSet<>();
 }
-

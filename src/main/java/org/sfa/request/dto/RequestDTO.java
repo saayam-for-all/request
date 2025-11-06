@@ -1,5 +1,6 @@
 package org.sfa.request.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -11,9 +12,14 @@ import java.time.ZonedDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RequestDTO {
+
     @NotBlank(message = "Requester ID cannot be blank")
     @Size(max = 255, message = "Requester ID must not exceed 255 characters")
     private String requesterId;
+
+    @NotBlank(message = "Request subject cannot be blank")
+    @Size(max = 125, message = "Request subject must not exceed 125 characters")
+    private String requestSubject;
 
     @NotBlank(message = "Request description cannot be blank")
     @Size(max = 255, message = "Request description must not exceed 255 characters")
@@ -22,19 +28,20 @@ public class RequestDTO {
     @Size(max = 255, message = "Audio request description must not exceed 255 characters")
     private String audioRequestDescription;
 
-    @Size(max = 255, message = "City name must not exceed 255 characters")
-    private String city;
-
-    @Size(max = 20, message = "ZIP code must not exceed 20 characters")
-    private String zipCode;
+    @Size(max = 125, message = "Request location must not exceed 125 characters")
+    private String requestLocation;
 
     private ZonedDateTime submittedAt;
-
-    private Integer leadVolunteerUserId;
 
     private ZonedDateTime servicedAt;
 
     private ZonedDateTime lastUpdatedAt;
+
+    private Integer isLeadVolunteer;
+
+    @Valid
+    private GuestDetailsDTO guestDetails;
+
 
     @NotNull(message = "Request status cannot be null")
     private RequestStatusDTO requestStatus;
@@ -45,8 +52,8 @@ public class RequestDTO {
     @NotNull(message = "Request type cannot be null")
     private RequestTypeDTO requestType;
 
-    @NotNull(message = "Request category cannot be null")
-    private RequestCategoryDTO requestCategory;
+    @NotNull(message = "Help category cannot be null")
+    private HelpCategoryDto helpCategory;
 
     @NotNull(message = "Request for cannot be null")
     private RequestForDTO requestFor;

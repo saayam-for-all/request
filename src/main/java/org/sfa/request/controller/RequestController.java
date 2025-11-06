@@ -15,8 +15,6 @@ import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.service.api.RequestService;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
-import org.sfa.request.utils.JsonConverter;
-import org.springframework.context.MessageSource;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +23,6 @@ import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.web.servlet.LocaleResolver;
-import org.sfa.request.service.api.SQSService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Locale;
@@ -35,13 +32,15 @@ import java.util.Locale;
  * Package: org.sfa.request.controller
  * Description:
  *
- * @author Fan Peng
- * Create 2024/6/15 1:51
+ * Handles API endpoints for managing requests in the Saayam system.
+ *
+ * @author Shariq
+ * Create 2025/11/01 1:51
  * @version 1.0
  */
 @Validated
 @RestController
-@RequestMapping("/api/v1.0.0/requests/{requesterId}")
+@RequestMapping("/dev/requests/v1.0.0/requests/{requesterId}")
 @RequiredArgsConstructor
 @Tag(name = "Request", description = "Request management APIs")
 public class RequestController {
@@ -49,13 +48,10 @@ public class RequestController {
     private final RequestService requestService;
     private final LocaleResolver localeResolver;
 
-//    private final SQSService sqsService;
-//    private final MessageSource messageSource;
-
     @Operation(
             summary = "Create a new request",
             description = "Creates a new request in the Saayam system for the specified requester. " +
-                    "The request includes details such as priority, type, category, and description."
+                    "The request includes details such as priority, type, help category, and description."
     )
     @ApiResponses(value = {
             @ApiResponse(
@@ -92,24 +88,23 @@ public class RequestController {
                       "description": "In-person request",
                       "lastUpdatedAt": "2024-07-15T19:37:44.65581Z"
                     },
-                    "requestCategory": {
-                      "requestCategoryId": 1,
-                      "category": "TECHNICAL_SUPPORT",
-                      "description": "Technical support request",
-                      "lastUpdatedAt": "2024-07-15T19:37:44.656694Z"
+                    "helpCategory": {                        // EDITED (was: requestCategory)
+                      "catId": "1.2",
+                      "catName": "GROCERY_SHOPPING_AND_DELIVERY",
+                      "catDesc": "GROCERY_SHOPPING_AND_DELIVERY_DESC"
                     },
                     "requestFor": {
                       "requestForId": 1,
                       "description": "Request for self",
                       "lastUpdatedAt": "2024-07-15T19:37:44.657513Z",
-                      "for": "SELF"
+                      "requestFor": "SELF"
                     },
-                    "city": "MD",
-                    "zipCode": "2288",
+                    "requestLocation": "MD",                 // EDITED (was: city/zipCode)
+                    "requestSubject": "Need technical support", // NEW (subject field in schema)
                     "requestDescription": "Need technical support",
                     "audioRequestDescription": "Audio description of the request",
                     "submittedAt": "2024-07-16T23:03:21.4388422-04:00",
-                    "leadVolunteerUserId": 123,
+                    "isLeadVolunteer": "NO",                 // EDITED (was: leadVolunteerUserId)
                     "servicedAt": null,
                     "lastUpdatedAt": "2024-07-16T23:03:21.4388422-04:00"
                   },
@@ -223,20 +218,4 @@ public class RequestController {
         return ResponseEntity.ok(response);
     }
 
-//    @PostMapping("/{requestId}/sendToQueue")
-//    public ResponseEntity<SaayamResponse<Void>> sendRequestToQueue(
-//            @PathVariable @NotNull String requesterId,
-//            @PathVariable @NotNull String requestId,
-//            HttpServletRequest request
-//    ) {
-//        Locale locale = localeResolver.resolveLocale(request);
-//        SaayamResponse<Request> requestResponse = requestService.getRequestById(requesterId, requestId, locale);
-//        Request foundRequest = requestResponse.getData();
-//
-//        String message = JsonConverter.convertRequestToJson(foundRequest);
-//        sqsService.sendMessage(message);
-//
-//        String successMessage = messageSource.getMessage("success.requestSentToQueue", new Object[]{requestId}, locale);
-//        return ResponseEntity.ok(SaayamResponse.success(SaayamStatusCode.REQUEST_SENT_TO_QUEUE, successMessage, null));
-//    }
 }

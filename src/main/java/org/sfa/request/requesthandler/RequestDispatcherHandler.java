@@ -39,21 +39,24 @@ public class RequestDispatcherHandler extends BaseRequestHandler<APIGatewayProxy
             String path = event.getPath();
             String method = event.getHttpMethod();
 
-            // Strip stage prefix (/dev, /test, /prod, etc.)
+            if (method.equalsIgnoreCase("OPTIONS")) {
+                return new APIGatewayProxyResponseEvent()
+                        .withStatusCode(200)
+                        .withHeaders(getCorsHeaders())
+                        .withBody("");
+            }
+
             path = path.replaceFirst("^/dev", "");
 
-            // Normalize versioned paths like /requests/v0.0.1/... to /api/...
             path = path.replaceFirst("^/requests/v0.0.1", "/api");
 
             log.info("Incoming request: normalizedPath={}, method={}, rawEvent={}", path, method, event);
 
             Locale locale = getLocaleFromRequest(event);
 
-            // CREATE REQUEST
             if (path.matches("/api/requests/.+") && method.equalsIgnoreCase("POST")) {
                 return handleCreateRequest(event, locale);
 
-                // GET HELP CATEGORIES
             } else if (path.equals("/api/helpCategories") && method.equalsIgnoreCase("GET")) {
                 return createResponse(200, helpCategoryService.getAllHierarchicalCategories());
 
@@ -68,7 +71,6 @@ public class RequestDispatcherHandler extends BaseRequestHandler<APIGatewayProxy
                 String catId = path.substring(path.lastIndexOf("/") + 1);
                 return createResponse(200, helpCategoryService.getCategoriesByCatId(catId));
 
-                // GET METADATA
             } else if (path.matches("/api/metadata/category/tree") && method.equalsIgnoreCase("GET")) {
                 return createResponse(200, metadataService.getFullMetadataTree());
 

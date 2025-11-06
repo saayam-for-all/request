@@ -11,8 +11,8 @@ import java.time.ZonedDateTime;
  * Package: org.sfa.request.model.entity
  * Description:
  *
- * @author Fan Peng
- * Create 2024/6/13 22:38
+ * @author Shariq
+ * Create 2025/11/1 22:38
  * @version 1.0
  */
 @Data
@@ -22,83 +22,84 @@ import java.time.ZonedDateTime;
 @Entity
 @Table(
         name = "request",
+        schema = "virginia_dev_saayam_rdbms",
         uniqueConstraints = {
-                @UniqueConstraint(name = "request_id_unique", columnNames = "request_id")
+                @UniqueConstraint(name = "request_id_unique", columnNames = "req_id")
         }
 )
 public class Request implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "request_id", updatable = false, columnDefinition = "VARCHAR(255)")
+    @Column(name = "req_id", updatable = false, insertable = false, columnDefinition = "VARCHAR(255)")
     private String requestId;
 
-    @Column(name = "request_user_id", nullable = false, columnDefinition = "VARCHAR(255)")
+    @Column(name = "req_user_id", nullable = false, columnDefinition = "VARCHAR(255)")
     private String requesterId;
 
     @ManyToOne
     @JoinColumn(
-            name = "request_status_id",
+            name = "req_status_id",
             nullable = false,
-            referencedColumnName = "request_status_id",
+            referencedColumnName = "req_status_id",
             foreignKey = @ForeignKey(name = "fk_request_status_id")
     )
     private RequestStatus requestStatus;
 
-
     @ManyToOne
     @JoinColumn(
-            name = "request_priority_id",
+            name = "req_priority_id",
             nullable = false,
-            referencedColumnName = "request_priority_id",
+            referencedColumnName = "req_priority_id",
             foreignKey = @ForeignKey(name = "fk_request_priority_id")
     )
     private RequestPriority requestPriority;
 
     @ManyToOne
     @JoinColumn(
-            name = "request_type_id",
+            name = "req_type_id",
             nullable = false,
-            referencedColumnName = "request_type_id",
+            referencedColumnName = "req_type_id",
             foreignKey = @ForeignKey(name = "fk_request_type_id")
     )
     private RequestType requestType;
 
     @ManyToOne
     @JoinColumn(
-            name = "request_category_id",
+            name = "req_cat_id",
             nullable = false,
-            referencedColumnName = "request_category_id",
+            referencedColumnName = "cat_id",
             foreignKey = @ForeignKey(name = "fk_request_category_id")
     )
-    private RequestCategory requestCategory;
+    private HelpCategory helpCategory;
 
     @ManyToOne
     @JoinColumn(
-            name = "request_for_id",
+            name = "req_for_id",
             nullable = false,
-            referencedColumnName = "request_for_id",
+            referencedColumnName = "req_for_id",
             foreignKey = @ForeignKey(name = "fk_request_for_id")
     )
     private RequestFor requestFor;
 
-    @Column(name = "city_name", columnDefinition = "VARCHAR(255)")
-    private String city;
+    @Column(name = "req_loc", columnDefinition = "VARCHAR(125)")
+    private String requestLocation;
 
-    @Column(name = "zip_code", columnDefinition = "VARCHAR(20)")
-    private String zipCode;
+    @Column(name = "req_subj", nullable = false, columnDefinition = "VARCHAR(125)")
+    private String requestSubject;
 
-    @Column(name = "request_desc", nullable = false, columnDefinition = "VARCHAR(255)")
+    @Column(name = "req_desc", nullable = false, columnDefinition = "VARCHAR(255)")
     private String requestDescription;
 
     @Column(name = "audio_req_desc", columnDefinition = "VARCHAR(255)")
     private String audioRequestDescription;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "req_islead_id", nullable = false)
+    private RequestIsLeadVolunteer isLeadVolunteer;
+
     @Column(name = "submission_date", columnDefinition = "TIMESTAMP")
     private ZonedDateTime submittedAt;
-
-    @Column(name = "lead_volunteer_user_id")
-    private Integer leadVolunteerUserId;
 
     @Column(name = "serviced_date", columnDefinition = "TIMESTAMP")
     private ZonedDateTime servicedAt;

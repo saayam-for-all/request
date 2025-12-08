@@ -12,6 +12,7 @@ import java.time.ZonedDateTime;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.sfa.request.model.entity.RequestIsLeadVol;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
@@ -54,10 +55,10 @@ class RequestDTOTest {
         RequestStatusDTO requestStatus = new RequestStatusDTO();
         RequestPriorityDTO requestPriority = new RequestPriorityDTO();
         RequestTypeDTO requestType = new RequestTypeDTO();
-        RequestCategoryDTO requestCategory = new RequestCategoryDTO();
+        HelpCategoryDto helpCategory = new HelpCategoryDto();
         RequestDTO requestDTO = new RequestDTO("42", "Request Description", "Audio Request Description", "Oxford", "21654",
-                submittedAt, 1, servicedAt, lastUpdatedAt, requestStatus, requestPriority, requestType, requestCategory,
-                new RequestForDTO());
+                submittedAt, 1, servicedAt, lastUpdatedAt, requestStatus, requestPriority, requestType, helpCategory,
+                new RequestForDTO(),new RequestIsLeadVolDTO());
 
         // Act and Assert
         assertNotEquals(requestDTO, new RequestDTO());
@@ -76,13 +77,13 @@ class RequestDTOTest {
         RequestStatusDTO requestStatus = new RequestStatusDTO();
         RequestPriorityDTO requestPriority = new RequestPriorityDTO();
         RequestTypeDTO requestType = new RequestTypeDTO();
-        RequestCategoryDTO requestCategory = new RequestCategoryDTO();
+        HelpCategoryDto helpCategory = new HelpCategoryDto();
 
         // Act and Assert
         assertNotEquals(requestDTO,
                 new RequestDTO("42", "Request Description", "Audio Request Description", "Oxford", "21654", submittedAt, 1,
-                        servicedAt, lastUpdatedAt, requestStatus, requestPriority, requestType, requestCategory,
-                        new RequestForDTO()));
+                        servicedAt, lastUpdatedAt, requestStatus, requestPriority, requestType, helpCategory,
+                        new RequestForDTO(),new RequestIsLeadVolDTO()));
     }
 
     /**
@@ -235,7 +236,7 @@ class RequestDTOTest {
     void testEquals15() {
         // Arrange
         RequestDTO requestDTO = new RequestDTO();
-        requestDTO.setRequestCategory(new RequestCategoryDTO());
+        requestDTO.setHelpCategory(new HelpCategoryDto ());
 
         // Act and Assert
         assertNotEquals(requestDTO, new RequestDTO());
@@ -428,7 +429,7 @@ class RequestDTOTest {
         RequestDTO requestDTO = new RequestDTO();
 
         RequestDTO requestDTO2 = new RequestDTO();
-        requestDTO2.setRequestCategory(new RequestCategoryDTO());
+        requestDTO2.setHelpCategory(new HelpCategoryDto());
 
         // Act and Assert
         assertNotEquals(requestDTO, requestDTO2);
@@ -505,20 +506,20 @@ class RequestDTOTest {
         RequestStatusDTO requestStatus = new RequestStatusDTO();
         RequestPriorityDTO requestPriority = new RequestPriorityDTO();
         RequestTypeDTO requestType = new RequestTypeDTO();
-        RequestCategoryDTO requestCategory = new RequestCategoryDTO();
+        HelpCategoryDto helpCategory = new HelpCategoryDto();
         RequestDTO requestDTO = new RequestDTO("42", "Request Description", "Audio Request Description", "Oxford", "21654",
-                submittedAt, 1, servicedAt, lastUpdatedAt, requestStatus, requestPriority, requestType, requestCategory,
-                new RequestForDTO());
+                submittedAt, 1, servicedAt, lastUpdatedAt, requestStatus, requestPriority, requestType, helpCategory,
+                new RequestForDTO(),new RequestIsLeadVolDTO());
         ZonedDateTime submittedAt2 = LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC);
         ZonedDateTime servicedAt2 = LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC);
         ZonedDateTime lastUpdatedAt2 = LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC);
         RequestStatusDTO requestStatus2 = new RequestStatusDTO();
         RequestPriorityDTO requestPriority2 = new RequestPriorityDTO();
         RequestTypeDTO requestType2 = new RequestTypeDTO();
-        RequestCategoryDTO requestCategory2 = new RequestCategoryDTO();
+        HelpCategoryDto helpCategory2 = new HelpCategoryDto();
         RequestDTO requestDTO2 = new RequestDTO("42", "Request Description", "Audio Request Description", "Oxford", "21654",
-                submittedAt2, 1, servicedAt2, lastUpdatedAt2, requestStatus2, requestPriority2, requestType2, requestCategory2,
-                new RequestForDTO());
+                submittedAt2, 1, servicedAt2, lastUpdatedAt2, requestStatus2, requestPriority2, requestType2, helpCategory2,
+                new RequestForDTO(),new RequestIsLeadVolDTO());
 
         // Act and Assert
         assertEquals(requestDTO, requestDTO2);
@@ -571,8 +572,8 @@ class RequestDTOTest {
         ZonedDateTime lastUpdatedAt = LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC);
         actualRequestDTO.setLastUpdatedAt(lastUpdatedAt);
         actualRequestDTO.setLeadVolunteerUserId(1);
-        RequestCategoryDTO requestCategory = new RequestCategoryDTO();
-        actualRequestDTO.setRequestCategory(requestCategory);
+        HelpCategoryDto  helpCategory = new HelpCategoryDto();
+        actualRequestDTO.setHelpCategory(helpCategory);
         actualRequestDTO.setRequestDescription("Request Description");
         RequestForDTO requestFor = new RequestForDTO();
         actualRequestDTO.setRequestFor(requestFor);
@@ -593,7 +594,7 @@ class RequestDTOTest {
         String actualCity = actualRequestDTO.getCity();
         ZonedDateTime actualLastUpdatedAt = actualRequestDTO.getLastUpdatedAt();
         Integer actualLeadVolunteerUserId = actualRequestDTO.getLeadVolunteerUserId();
-        RequestCategoryDTO actualRequestCategory = actualRequestDTO.getRequestCategory();
+        HelpCategoryDto  actualHelpCategory = actualRequestDTO.getHelpCategory();
         String actualRequestDescription = actualRequestDTO.getRequestDescription();
         RequestForDTO actualRequestFor = actualRequestDTO.getRequestFor();
         RequestPriorityDTO actualRequestPriority = actualRequestDTO.getRequestPriority();
@@ -618,7 +619,7 @@ class RequestDTOTest {
                         + " requestFor=RequestForDTO(requestForId=null))",
                 actualToStringResult);
         assertEquals(1, actualLeadVolunteerUserId.intValue());
-        assertSame(requestCategory, actualRequestCategory);
+        assertSame(helpCategory, actualHelpCategory);
         assertSame(requestFor, actualRequestFor);
         assertSame(requestPriority, actualRequestPriority);
         assertSame(requestStatus, actualRequestStatus);
@@ -674,20 +675,21 @@ class RequestDTOTest {
         RequestStatusDTO requestStatus = new RequestStatusDTO();
         RequestPriorityDTO requestPriority = new RequestPriorityDTO();
         RequestTypeDTO requestType = new RequestTypeDTO();
-        RequestCategoryDTO requestCategory = new RequestCategoryDTO();
+        HelpCategoryDto helpCategory = new HelpCategoryDto();
         RequestForDTO requestFor = new RequestForDTO();
+        RequestIsLeadVolDTO requestIsLeadVol= new RequestIsLeadVolDTO();
 
         // Act
         RequestDTO actualRequestDTO = new RequestDTO("42", "Request Description", "Audio Request Description", "Oxford",
                 "21654", submittedAt, 1, servicedAt, lastUpdatedAt, requestStatus, requestPriority, requestType,
-                requestCategory, requestFor);
+                helpCategory, requestFor, requestIsLeadVol);
         actualRequestDTO.setAudioRequestDescription("Audio Request Description");
         actualRequestDTO.setCity("Oxford");
         ZonedDateTime lastUpdatedAt2 = LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC);
         actualRequestDTO.setLastUpdatedAt(lastUpdatedAt2);
         actualRequestDTO.setLeadVolunteerUserId(1);
-        RequestCategoryDTO requestCategory2 = new RequestCategoryDTO();
-        actualRequestDTO.setRequestCategory(requestCategory2);
+        HelpCategoryDto helpCategory2 = new HelpCategoryDto();
+        actualRequestDTO.setHelpCategory(helpCategory2);
         actualRequestDTO.setRequestDescription("Request Description");
         RequestForDTO requestFor2 = new RequestForDTO();
         actualRequestDTO.setRequestFor(requestFor2);
@@ -708,7 +710,7 @@ class RequestDTOTest {
         String actualCity = actualRequestDTO.getCity();
         ZonedDateTime actualLastUpdatedAt = actualRequestDTO.getLastUpdatedAt();
         Integer actualLeadVolunteerUserId = actualRequestDTO.getLeadVolunteerUserId();
-        RequestCategoryDTO actualRequestCategory = actualRequestDTO.getRequestCategory();
+        HelpCategoryDto  actualHelpCategory = actualRequestDTO.getHelpCategory();
         String actualRequestDescription = actualRequestDTO.getRequestDescription();
         RequestForDTO actualRequestFor = actualRequestDTO.getRequestFor();
         RequestPriorityDTO actualRequestPriority = actualRequestDTO.getRequestPriority();
@@ -717,6 +719,8 @@ class RequestDTOTest {
         String actualRequesterId = actualRequestDTO.getRequesterId();
         ZonedDateTime actualServicedAt = actualRequestDTO.getServicedAt();
         ZonedDateTime actualSubmittedAt = actualRequestDTO.getSubmittedAt();
+       
+        
 
         // Assert that nothing has changed
         assertEquals("21654", actualRequestDTO.getZipCode());
@@ -733,12 +737,12 @@ class RequestDTOTest {
                         + " requestFor=RequestForDTO(requestForId=null))",
                 actualToStringResult);
         assertEquals(1, actualLeadVolunteerUserId.intValue());
-        assertEquals(requestCategory, actualRequestCategory);
+        assertEquals(helpCategory, actualHelpCategory);
         assertEquals(requestFor, actualRequestFor);
         assertEquals(requestPriority, actualRequestPriority);
         assertEquals(requestStatus, actualRequestStatus);
         assertEquals(requestType, actualRequestType);
-        assertSame(requestCategory2, actualRequestCategory);
+        assertSame(helpCategory2, actualHelpCategory);
         assertSame(requestFor2, actualRequestFor);
         assertSame(requestPriority2, actualRequestPriority);
         assertSame(requestStatus2, actualRequestStatus);

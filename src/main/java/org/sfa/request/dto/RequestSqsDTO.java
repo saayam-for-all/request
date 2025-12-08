@@ -23,6 +23,7 @@ public class RequestSqsDTO {
     private String requestPriority;
     private String requestType;
     private String requestCategory;
+    private String helpCategory;
     private String requestFor;
     private String city;
     private String zipCode;

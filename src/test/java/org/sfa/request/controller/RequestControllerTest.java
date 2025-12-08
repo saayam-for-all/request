@@ -59,6 +59,12 @@ class RequestControllerTest {
         requestCategory.setLastUpdatedAt(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC));
         requestCategory.setRequestCategoryId(1);
         requestCategory.setRequests(new HashSet<>());
+        
+        HelpCategory helpcategory = new HelpCategory();
+        helpcategory.setCatId("1");
+        helpcategory.setCatName("FOOD_AND_ESSENTIALS_SUPPORT");
+        helpcategory.setCatDesc("Support for food and essential items");
+        
 
         RequestFor requestFor = new RequestFor();
         requestFor.setDescription("The characteristics of someone or something");
@@ -93,7 +99,7 @@ class RequestControllerTest {
         request.setCity("Oxford");
         request.setLastUpdatedAt(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC));
         request.setLeadVolunteerUserId(1);
-        request.setRequestCategory(requestCategory);
+        request.setHelpCategory(helpcategory);
         request.setRequestDescription("Request Description");
         request.setRequestFor(requestFor);
         request.setRequestId("42");
@@ -216,6 +222,12 @@ class RequestControllerTest {
         requestCategory.setLastUpdatedAt(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC));
         requestCategory.setRequestCategoryId(1);
         requestCategory.setRequests(new HashSet<>());
+        
+        HelpCategory helpcategory = new HelpCategory();
+        helpcategory.setCatId("1");
+        helpcategory.setCatName("FOOD_AND_ESSENTIALS_SUPPORT");
+        helpcategory.setCatDesc("Support for food and essential items");
+        
 
         RequestFor requestFor = new RequestFor();
         requestFor.setDescription("The characteristics of someone or something");
@@ -250,7 +262,7 @@ class RequestControllerTest {
         request.setCity("Oxford");
         request.setLastUpdatedAt(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC));
         request.setLeadVolunteerUserId(1);
-        request.setRequestCategory(requestCategory);
+        request.setHelpCategory(helpcategory);
         request.setRequestDescription("Request Description");
         request.setRequestFor(requestFor);
         request.setRequestId("42");
@@ -311,6 +323,12 @@ class RequestControllerTest {
         requestCategory.setRequestCategoryId(1);
         requestCategory.setRequests(new HashSet<>());
 
+        HelpCategory helpcategory = new HelpCategory();
+        helpcategory.setCatId("1");
+        helpcategory.setCatName("FOOD_AND_ESSENTIALS_SUPPORT");
+        helpcategory.setCatDesc("Support for food and essential items");
+        
+        
         RequestFor requestFor = new RequestFor();
         requestFor.setDescription("The characteristics of someone or something");
         requestFor.setFor(RequestForEnum.UNSPECIFIED);
@@ -344,7 +362,7 @@ class RequestControllerTest {
         request.setCity("Oxford");
         request.setLastUpdatedAt(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC));
         request.setLeadVolunteerUserId(1);
-        request.setRequestCategory(requestCategory);
+        request.setHelpCategory(helpcategory);
         request.setRequestDescription("Request Description");
         request.setRequestFor(requestFor);
         request.setRequestId("42");
@@ -421,7 +439,7 @@ class RequestControllerTest {
         requestDTO.setCity("Oxford");
         requestDTO.setLastUpdatedAt(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC));
         requestDTO.setLeadVolunteerUserId(1);
-        requestDTO.setRequestCategory(new RequestCategoryDTO());
+        requestDTO.setHelpCategory(new HelpCategoryDto());
         requestDTO.setRequestDescription("Request Description");
         requestDTO.setRequestFor(new RequestForDTO());
         requestDTO.setRequestPriority(new RequestPriorityDTO());
@@ -471,7 +489,7 @@ class RequestControllerTest {
         requestDTO.setCity("Oxford");
         requestDTO.setLastUpdatedAt(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC));
         requestDTO.setLeadVolunteerUserId(1);
-        requestDTO.setRequestCategory(new RequestCategoryDTO());
+        requestDTO.setHelpCategory(new HelpCategoryDto());
         requestDTO.setRequestDescription("Request Description");
         requestDTO.setRequestFor(new RequestForDTO());
         requestDTO.setRequestPriority(new RequestPriorityDTO());

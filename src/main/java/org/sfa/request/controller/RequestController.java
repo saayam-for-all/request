@@ -16,6 +16,7 @@ import org.sfa.request.service.api.RequestService;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
 import org.sfa.request.utils.JsonConverter;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -45,9 +46,10 @@ import java.util.Locale;
 @RequiredArgsConstructor
 @Tag(name = "Request", description = "Request management APIs")
 public class RequestController {
-
-    private final RequestService requestService;
-    private final LocaleResolver localeResolver;
+    @Autowired
+    private RequestService requestService;
+    @Autowired
+    private LocaleResolver localeResolver;
 
 //    private final SQSService sqsService;
 //    private final MessageSource messageSource;
@@ -139,7 +141,7 @@ public class RequestController {
                     )
             )
     })
-    @PostMapping
+    @PostMapping("/createRequest")
     public ResponseEntity<SaayamResponse<Request>> createRequest(
             @Parameter(description = "Unique identifier of the requester", required = true, example = "SID-00-000-000-0001")
             @PathVariable @NotNull String requesterId,

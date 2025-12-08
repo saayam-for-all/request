@@ -36,12 +36,11 @@ public class RequestCategory {
     private ZonedDateTime lastUpdatedAt;
 
     @JsonIgnore
-    @OneToMany(
-            mappedBy = "requestCategory",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true,
-            fetch = FetchType.LAZY
-    )
+	/*
+	 * @OneToMany( mappedBy = "requestCategory", cascade = CascadeType.ALL,
+	 * orphanRemoval = true, fetch = FetchType.LAZY )
+	 */
+    @Transient
     private Set<Request> requests = new HashSet<>();
 }
 

@@ -1,23 +1,24 @@
 package org.sfa.request.dto;
 
 import org.sfa.request.model.entity.HelpCategory;
-
 import java.util.ArrayList;
 import java.util.List;
 
 public class HelpCategoryDto {
+
     private String catId;
     private String catName;
     private String catDesc;
     private List<HelpCategoryDto> subCategories = new ArrayList<>();
 
-    // Constructors
+    // Default constructor
     public HelpCategoryDto() {}
 
-    public HelpCategoryDto(HelpCategory category) {
-        this.catId = category.getCatId();
-        this.catName = category.getCatName();
-        this.catDesc = category.getCatDesc();
+    // Constructor using entity
+    public HelpCategoryDto(HelpCategory helpCategory) {
+        this.catId = helpCategory.getCatId();
+        this.catName = helpCategory.getCatName();
+        this.catDesc = helpCategory.getCatDesc();
     }
 
     // Getters and Setters
@@ -53,3 +54,4 @@ public class HelpCategoryDto {
         this.subCategories = subCategories;
     }
 }
+

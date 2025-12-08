@@ -29,7 +29,7 @@ public class JsonConverter {
         dto.setRequestStatus(request.getRequestStatus().getStatus().name());
         dto.setRequestPriority(request.getRequestPriority().getPriority().name());
         dto.setRequestType(request.getRequestType().getType().name());
-        dto.setRequestCategory(request.getRequestCategory().getCategory().name());
+        dto.setHelpCategory(request.getHelpCategory().getCatId());
         dto.setRequestFor(request.getRequestFor().getFor().name());
         dto.setCity(request.getCity());
         dto.setZipCode(request.getZipCode());

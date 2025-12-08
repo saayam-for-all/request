@@ -1,10 +1,11 @@
 package org.sfa.request.model.entity;
 
-import org.junit.jupiter.api.Test;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.ZonedDateTime;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+
 
 class RequestTest {
 
@@ -20,7 +21,7 @@ class RequestTest {
         request.setRequestStatus(new RequestStatus());
         request.setRequestPriority(new RequestPriority());
         request.setRequestType(new RequestType());
-        request.setRequestCategory(new RequestCategory());
+        request.setHelpCategory(new HelpCategory());
         request.setRequestFor(new RequestFor());
         request.setCity("New York");
         request.setZipCode("10001");
@@ -30,13 +31,14 @@ class RequestTest {
         request.setLeadVolunteerUserId(101);
         request.setServicedAt(servicedAtTime);
         request.setLastUpdatedAt(lastUpdatedAtTime);
+        request.setRequestSubject("test");
 
         assertThat(request.getRequestId()).isEqualTo("REQ12345");
         assertThat(request.getRequesterId()).isEqualTo("USR123");
         assertThat(request.getRequestStatus()).isNotNull();
         assertThat(request.getRequestPriority()).isNotNull();
         assertThat(request.getRequestType()).isNotNull();
-        assertThat(request.getRequestCategory()).isNotNull();
+        assertThat(request.getHelpCategory()).isNotNull();
         assertThat(request.getRequestFor()).isNotNull();
         assertThat(request.getCity()).isEqualTo("New York");
         assertThat(request.getZipCode()).isEqualTo("10001");
@@ -64,16 +66,16 @@ class RequestTest {
         ZonedDateTime lastUpdatedAtTime = ZonedDateTime.now();
 
         Request request = new Request("REQ12345", "USR123", new RequestStatus(), new RequestPriority(),
-                new RequestType(), new RequestCategory(), new RequestFor(), "New York", "10001",
+                new RequestType(), new HelpCategory(), new RequestFor(), "New York", "10001",
                 "This is a test request.", "Test audio description", submittedAtTime, 101, servicedAtTime,
-                lastUpdatedAtTime);
+                lastUpdatedAtTime,new RequestIsLeadVol(),"test");
 
         assertThat(request.getRequestId()).isEqualTo("REQ12345");
         assertThat(request.getRequesterId()).isEqualTo("USR123");
         assertThat(request.getRequestStatus()).isNotNull();
         assertThat(request.getRequestPriority()).isNotNull();
         assertThat(request.getRequestType()).isNotNull();
-        assertThat(request.getRequestCategory()).isNotNull();
+        assertThat(request.getHelpCategory()).isNotNull();
         assertThat(request.getRequestFor()).isNotNull();
         assertThat(request.getCity()).isEqualTo("New York");
         assertThat(request.getZipCode()).isEqualTo("10001");
@@ -105,7 +107,7 @@ class RequestTest {
                 .requestStatus(new RequestStatus())
                 .requestPriority(new RequestPriority())
                 .requestType(new RequestType())
-                .requestCategory(new RequestCategory())
+                .helpCategory(new HelpCategory())
                 .requestFor(new RequestFor())
                 .city("New York")
                 .zipCode("10001")
@@ -115,6 +117,7 @@ class RequestTest {
                 .leadVolunteerUserId(101)
                 .servicedAt(servicedAtTime)
                 .lastUpdatedAt(lastUpdatedAtTime)
+                .requestIsLeadVol(new RequestIsLeadVol())
                 .build();
 
         assertThat(request.getRequestId()).isEqualTo("REQ12345");
@@ -140,7 +143,7 @@ class RequestTest {
         request1.setRequestStatus(new RequestStatus());
         request1.setRequestPriority(new RequestPriority());
         request1.setRequestType(new RequestType());
-        request1.setRequestCategory(new RequestCategory());
+        request1.setHelpCategory(new HelpCategory());
         request1.setRequestFor(new RequestFor());
         request1.setCity("New York");
         request1.setZipCode("10001");
@@ -157,7 +160,7 @@ class RequestTest {
         request2.setRequestStatus(new RequestStatus());
         request2.setRequestPriority(new RequestPriority());
         request2.setRequestType(new RequestType());
-        request2.setRequestCategory(new RequestCategory());
+        request2.setHelpCategory(new HelpCategory());
         request2.setRequestFor(new RequestFor());
         request2.setCity("New York");
         request2.setZipCode("10001");
@@ -174,7 +177,7 @@ class RequestTest {
         request3.setRequestStatus(new RequestStatus());
         request3.setRequestPriority(new RequestPriority());
         request3.setRequestType(new RequestType());
-        request3.setRequestCategory(new RequestCategory());
+        request3.setHelpCategory(new HelpCategory());
         request3.setRequestFor(new RequestFor());
         request3.setCity("Los Angeles");
         request3.setZipCode("90001");
@@ -204,7 +207,7 @@ class RequestTest {
         request1.setRequestStatus(null);
         request1.setRequestPriority(null);
         request1.setRequestType(null);
-        request1.setRequestCategory(null);
+        request1.setHelpCategory(null);
         request1.setRequestFor(null);
         request1.setCity(null);
         request1.setZipCode(null);
@@ -221,7 +224,7 @@ class RequestTest {
         request2.setRequestStatus(null);
         request2.setRequestPriority(null);
         request2.setRequestType(null);
-        request2.setRequestCategory(null);
+        request2.setHelpCategory(null);
         request2.setRequestFor(null);
         request2.setCity(null);
         request2.setZipCode(null);
@@ -252,7 +255,7 @@ class RequestTest {
         request1.setRequestStatus(new RequestStatus());
         request1.setRequestPriority(new RequestPriority());
         request1.setRequestType(new RequestType());
-        request1.setRequestCategory(new RequestCategory());
+        request1.setHelpCategory(new HelpCategory());
         request1.setRequestFor(new RequestFor());
         request1.setCity("New York");
         request1.setZipCode("10001");
@@ -281,7 +284,7 @@ class RequestTest {
         request1.setRequestStatus(new RequestStatus());
         request1.setRequestPriority(new RequestPriority());
         request1.setRequestType(new RequestType());
-        request1.setRequestCategory(new RequestCategory());
+        request1.setHelpCategory(new HelpCategory());
         request1.setRequestFor(new RequestFor());
         request1.setCity("New York");
         request1.setZipCode("10001");
@@ -298,7 +301,7 @@ class RequestTest {
         request2.setRequestStatus(new RequestStatus());
         request2.setRequestPriority(new RequestPriority());
         request2.setRequestType(new RequestType());
-        request2.setRequestCategory(new RequestCategory());
+        request2.setHelpCategory(new HelpCategory());
         request2.setRequestFor(new RequestFor());
         request2.setCity("New York");
         request2.setZipCode("10001");

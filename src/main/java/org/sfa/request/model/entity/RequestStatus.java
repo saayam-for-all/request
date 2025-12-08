@@ -16,20 +16,20 @@ import java.util.Set;
 @Table(
         name = "request_status",
         uniqueConstraints = {
-                @UniqueConstraint(name = "request_status_id_unique", columnNames = "request_status_id")
+                @UniqueConstraint(name = "req_status_id_unique", columnNames = "req_status_id")
         }
 )
 public class RequestStatus {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "request_status_id", updatable = false)
+    @Column(name = "req_status_id", updatable = false)
     private Integer requestStatusId;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "request_status", nullable = false, columnDefinition = "VARCHAR(255)")
+    @Column(name = "req_status", nullable = false, columnDefinition = "VARCHAR(255)")
     private RequestStatusEnum status;
 
-    @Column(name = "request_status_desc", columnDefinition = "VARCHAR(255)")
+    @Column(name = "req_status_desc", columnDefinition = "VARCHAR(255)")
     private String description;
 
     @Column(name = "last_updated_date", columnDefinition = "TIMESTAMP")

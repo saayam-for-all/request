@@ -44,10 +44,20 @@ public class RequestDTO {
 
     @NotNull(message = "Request type cannot be null")
     private RequestTypeDTO requestType;
-
+    
     @NotNull(message = "Request category cannot be null")
-    private RequestCategoryDTO requestCategory;
+    private HelpCategoryDto helpCategory;
+	/*
+	 * @NotNull(message = "Request category cannot be null") private
+	 * RequestCategoryDTO requestCategory;
+	 */
 
     @NotNull(message = "Request for cannot be null")
     private RequestForDTO requestFor;
+    
+    @NotNull(message = "requestIsLeadVol cannot be null")
+    private RequestIsLeadVolDTO requestIsLeadVol;
+    
+
+    
 }

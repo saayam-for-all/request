@@ -15,10 +15,19 @@ import java.time.ZonedDateTime;
  * Create 2025/11/1 22:38
  * @version 1.0
  */
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString(exclude = {
+        "requestStatus",
+        "requestPriority",
+        "requestType",
+        "helpCategory",
+        "requestFor",
+        "isLeadVolunteer"
+})
 @Entity
 @Table(
         name = "request",
@@ -31,7 +40,7 @@ public class Request implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "req_id", updatable = false, insertable = false, columnDefinition = "VARCHAR(255)")
+    @Column(name = "req_id", updatable = false, nullable = false)
     private String requestId;
 
     @Column(name = "req_user_id", nullable = false, columnDefinition = "VARCHAR(255)")
@@ -85,17 +94,28 @@ public class Request implements Serializable {
     @Column(name = "req_loc", columnDefinition = "VARCHAR(125)")
     private String requestLocation;
 
+    @Column(name = "iscalamity")
+    private Boolean isCalamity;
+
     @Column(name = "req_subj", nullable = false, columnDefinition = "VARCHAR(125)")
     private String requestSubject;
 
     @Column(name = "req_desc", nullable = false, columnDefinition = "VARCHAR(255)")
     private String requestDescription;
 
+    @Column(name = "req_doc_link", columnDefinition = "TEXT")
+    private String requestDocumentLink;
+
     @Column(name = "audio_req_desc", columnDefinition = "VARCHAR(255)")
     private String audioRequestDescription;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "req_islead_id", nullable = false)
+    @JoinColumn(
+            name = "req_islead_id",
+            nullable = false,
+            referencedColumnName = "req_islead_id",
+            foreignKey = @ForeignKey(name = "fk_request_islead_id")
+    )
     private RequestIsLeadVolunteer isLeadVolunteer;
 
     @Column(name = "submission_date", columnDefinition = "TIMESTAMP")

@@ -1,6 +1,5 @@
 package org.sfa.request.service.impl;
 
-
 import org.sfa.request.dto.HelpCategoryDto;
 import org.sfa.request.dto.HelpCategoryMapDto;
 import org.sfa.request.model.entity.HelpCategory;
@@ -72,34 +71,63 @@ public class HelpCategoryServiceImpl implements HelpCategoryService {
 
     @Override
     public List<HelpCategoryDto> getAllHierarchicalCategories() {
-        List<HelpCategory> allCategories = helpCategoryRepository.findAll();
 
-        // Convert to DTO map
+        List<HelpCategory> allCategories = helpCategoryRepository.findAll();
+        NaturalOrderComparator comparator = new NaturalOrderComparator();
+
         Map<String, HelpCategoryDto> dtoMap = new HashMap<>();
         for (HelpCategory cat : allCategories) {
-            dtoMap.put(cat.getCatId(), new HelpCategoryDto(cat));
+            String cleanId = clean(cat.getCatId());
+            HelpCategoryDto dto = new HelpCategoryDto(cat);
+            dto.setCatId(cleanId);
+            dtoMap.put(cleanId, dto);
         }
 
-        // Build hierarchy
         List<HelpCategoryDto> rootCategories = new ArrayList<>();
 
         for (HelpCategoryDto dto : dtoMap.values()) {
-            String catId = dto.getCatId();
-            int lastDot = catId.lastIndexOf(".");
+            String id = dto.getCatId();
+            int lastDot = id.lastIndexOf(".");
+
             if (lastDot == -1) {
-                rootCategories.add(dto); // It's a root node (e.g. 1, 2, 3)
+                rootCategories.add(dto);
             } else {
-                String parentId = catId.substring(0, lastDot);
+                String parentId = id.substring(0, lastDot);
                 HelpCategoryDto parent = dtoMap.get(parentId);
                 if (parent != null) {
                     parent.getSubCategories().add(dto);
                 } else {
-                    rootCategories.add(dto); // fallback if no parent found
+                    rootCategories.add(dto);
                 }
             }
         }
 
+        sortRecursively(rootCategories, comparator);
+
         return rootCategories;
     }
+
+    private String clean(String id) {
+        if (id == null) return null;
+        return id
+                .trim()
+                .replace("\uFEFF", "")
+                .replace("\u00A0", ""); // NBSP
+    }
+
+    private void sortRecursively(List<HelpCategoryDto> list, NaturalOrderComparator comparator) {
+
+        list.sort(Comparator.comparing(
+                HelpCategoryDto::getCatId,
+                comparator
+        ));
+
+        for (HelpCategoryDto dto : list) {
+            if (dto.getSubCategories() != null && !dto.getSubCategories().isEmpty()) {
+                sortRecursively(dto.getSubCategories(), comparator);
+            }
+        }
+    }
+
 
 }

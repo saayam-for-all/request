@@ -11,16 +11,15 @@ public class HelpCategoryDto {
     private String catDesc;
     private List<HelpCategoryDto> subCategories = new ArrayList<>();
 
-    // Constructors
     public HelpCategoryDto() {}
 
     public HelpCategoryDto(HelpCategory category) {
         this.catId = category.getCatId();
         this.catName = category.getCatName();
         this.catDesc = category.getCatDesc();
+        this.subCategories = new ArrayList<>();
     }
 
-    // Getters and Setters
     public String getCatId() {
         return catId;
     }

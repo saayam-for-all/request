@@ -49,24 +49,24 @@ public class CreateRequestHandler extends BaseRequestHandler<APIGatewayProxyRequ
             }
             log.info("Received create request event: {}", requestEvent);
 
-            String requesterId = (requestEvent.getPathParameters() != null)
-                    ? requestEvent.getPathParameters().get("requesterId")
-                    : null;
+            RequestDTO requestDTO =
+                    objectMapper.readValue(requestEvent.getBody(), RequestDTO.class);
 
-            if (requesterId == null || requesterId.trim().isEmpty()) {
-                log.warn("Missing requesterId in path parameters.");
-                return createErrorResponse(HttpStatus.BAD_REQUEST.value(), SaayamStatusCode.BAD_REQUEST,
-                        "Missing 'requesterId' path parameter");
+            if (requestDTO.getRequesterId() == null || requestDTO.getRequesterId().isBlank()) {
+                log.warn("Missing requesterId in request body.");
+                return createErrorResponse(
+                        HttpStatus.BAD_REQUEST.value(),
+                        SaayamStatusCode.BAD_REQUEST,
+                        "Missing 'requesterId' in request body"
+                );
             }
 
-
-            RequestDTO requestDTO = objectMapper.readValue(requestEvent.getBody(), RequestDTO.class);
+            String requesterId = requestDTO.getRequesterId();
             Locale locale = getLocaleFromRequest(requestEvent);
 
             log.info("Processing create request for requesterId: {}, requestDTO: {}", requesterId, requestDTO);
-
-
-            SaayamResponse<Request> response = requestService.createRequest(requesterId, requestDTO, locale);
+            SaayamResponse<Request> response =
+                    requestService.createRequest(requesterId, requestDTO, locale);
 
             log.info("Create request successful. Response: {}", response);
             return createResponse(HttpStatus.CREATED.value(), response);

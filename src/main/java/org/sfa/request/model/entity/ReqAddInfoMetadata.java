@@ -3,8 +3,6 @@ package org.sfa.request.model.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
-import java.util.List;
-
 @Entity
 @Table(name = "req_add_info_metadata", schema = "virginia_dev_saayam_rdbms")
 @Data
@@ -28,7 +26,4 @@ public class ReqAddInfoMetadata {
 
     @Column(name = "cat_id")
     private String catId;
-
-    @OneToMany(mappedBy = "metadataField", fetch = FetchType.LAZY)
-    private List<ListItemMetadata> listItems;
 }

@@ -6,7 +6,7 @@ import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent
 
 import lombok.extern.slf4j.Slf4j;
 import org.sfa.request.dto.EnumsResponse;
-import org.sfa.request.service.EnumService;
+import org.sfa.request.service.api.EnumService;
 import org.sfa.request.exception.handler.LambdaExceptionHandler;
 import org.sfa.request.constant.SaayamStatusCode;
 

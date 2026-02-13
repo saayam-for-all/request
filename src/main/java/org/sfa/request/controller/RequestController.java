@@ -40,7 +40,7 @@ import java.util.Locale;
  */
 @Validated
 @RestController
-@RequestMapping("/dev/requests/v1.0.0/requests/{requesterId}")
+@RequestMapping("/dev/requests/v1.0.0/requests")
 @RequiredArgsConstructor
 @Tag(name = "Request", description = "Request management APIs")
 public class RequestController {
@@ -136,24 +136,24 @@ public class RequestController {
     })
     @PostMapping
     public ResponseEntity<SaayamResponse<Request>> createRequest(
-            @Parameter(description = "Unique identifier of the requester", required = true, example = "SID-00-000-000-0001")
-            @PathVariable @NotNull String requesterId,
-
             @Parameter(description = "Request details", required = true)
             @RequestBody @Valid RequestDTO requestDTO,
 
             HttpServletRequest request
     ) {
-        requestDTO.setRequesterId(requesterId);
         Locale locale = localeResolver.resolveLocale(request);
-        SaayamResponse<Request> response = requestService.createRequest(requesterId, requestDTO, locale);
+        SaayamResponse<Request> response = requestService.createRequest(
+                requestDTO.getRequesterId(),
+                requestDTO,
+                locale
+        );
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping("/{requestId}")
     public ResponseEntity<SaayamResponse<Request>> getRequestById(
-            @PathVariable @NotNull String requesterId,
             @PathVariable @NotNull String requestId,
+            @RequestParam @NotNull String requesterId,
             HttpServletRequest request
     ) {
         Locale locale = localeResolver.resolveLocale(request);
@@ -163,7 +163,7 @@ public class RequestController {
 
     @GetMapping
     public ResponseEntity<SaayamResponse<PagedResponse<Request>>> getRequests(
-            @PathVariable @NotNull String requesterId,
+            @RequestParam @NotNull String requesterId,
             Pageable pageable,
             HttpServletRequest request
     ) {
@@ -174,21 +174,24 @@ public class RequestController {
 
     @PutMapping("/{requestId}")
     public ResponseEntity<SaayamResponse<Request>> updateRequest(
-            @PathVariable @NotNull String requesterId,
             @PathVariable @NotNull String requestId,
             @RequestBody @Valid RequestDTO requestDTO,
             HttpServletRequest request
     ) {
-        requestDTO.setRequesterId(requesterId);
         Locale locale = localeResolver.resolveLocale(request);
-        SaayamResponse<Request> response = requestService.updateRequest(requesterId, requestId, requestDTO, locale);
+        SaayamResponse<Request> response = requestService.updateRequest(
+                requestDTO.getRequesterId(),
+                requestId,
+                requestDTO,
+                locale
+        );
         return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{requestId}")
     public ResponseEntity<SaayamResponse<Void>> deleteRequest(
-            @PathVariable @NotNull String requesterId,
             @PathVariable @NotNull String requestId,
+            @RequestParam @NotNull String requesterId,
             HttpServletRequest request
     ) {
         Locale locale = localeResolver.resolveLocale(request);
@@ -198,8 +201,8 @@ public class RequestController {
 
     @PostMapping("/{requestId}/cancel")
     public ResponseEntity<SaayamResponse<Request>> cancelRequest(
-            @PathVariable @NotNull String requesterId,
             @PathVariable @NotNull String requestId,
+            @RequestParam @NotNull String requesterId,
             HttpServletRequest request
     ) {
         Locale locale = localeResolver.resolveLocale(request);
@@ -209,8 +212,8 @@ public class RequestController {
 
     @PostMapping("/{requestId}/resume")
     public ResponseEntity<SaayamResponse<Request>> resumeRequest(
-            @PathVariable @NotNull String requesterId,
             @PathVariable @NotNull String requestId,
+            @RequestParam @NotNull String requesterId,
             HttpServletRequest request
     ) {
         Locale locale = localeResolver.resolveLocale(request);

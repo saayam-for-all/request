@@ -321,9 +321,12 @@ public class RequestServiceImpl implements RequestService {
                 .requestSubject(requestDTO.getRequestSubject())
                 .requestDescription(requestDTO.getRequestDescription())
                 .audioRequestDescription(requestDTO.getAudioRequestDescription())
+                .isCalamity(requestDTO.getIsCalamity())
+                .requestDocumentLink(requestDTO.getRequestDocumentLink())
                 .submittedAt(now)
                 .servicedAt(requestDTO.getServicedAt())
                 .lastUpdatedAt(now)
+
                 .build();
     }
 
@@ -344,6 +347,9 @@ public class RequestServiceImpl implements RequestService {
         Optional.ofNullable(requestDTO.getRequestSubject()).ifPresent(request::setRequestSubject);
 
         Optional.ofNullable(requestDTO.getRequestDescription()).ifPresent(request::setRequestDescription);
+        Optional.ofNullable(requestDTO.getIsCalamity()).ifPresent(request::setIsCalamity);
+        Optional.ofNullable(requestDTO.getRequestDocumentLink()).ifPresent(request::setRequestDocumentLink);
+
         Optional.ofNullable(requestDTO.getAudioRequestDescription()).ifPresent(request::setAudioRequestDescription);
 
         Optional.ofNullable(requestDTO.getIsLeadVolunteer())

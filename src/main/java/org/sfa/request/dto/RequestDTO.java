@@ -31,17 +31,21 @@ public class RequestDTO {
     @Size(max = 125, message = "Request location must not exceed 125 characters")
     private String requestLocation;
 
+    // NEW: matches iscalamity in DB
+    private Boolean isCalamity;
+
+    // NEW: matches req_doc_link in DB
+    private String requestDocumentLink;
+
     private ZonedDateTime submittedAt;
-
     private ZonedDateTime servicedAt;
-
     private ZonedDateTime lastUpdatedAt;
 
+    // maps to req_islead_id
     private Integer isLeadVolunteer;
 
     @Valid
     private GuestDetailsDTO guestDetails;
-
 
     @NotNull(message = "Request status cannot be null")
     private RequestStatusDTO requestStatus;

@@ -5,10 +5,7 @@ import org.sfa.request.dto.HelpCategoryMapDto;
 import org.sfa.request.model.entity.HelpCategory;
 import org.sfa.request.service.api.HelpCategoryService;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
@@ -28,16 +25,32 @@ public class HelpCategoryController {
         return ResponseEntity.ok(result);
     }
 
-    @GetMapping("/parent/{parentId}")
-    public ResponseEntity<List<HelpCategoryMapDto>> getByParentId(@PathVariable String parentId) {
+    @PostMapping("/parent")
+    public ResponseEntity<List<HelpCategoryMapDto>> getByParentId(@RequestBody Map<String, String> request) {
+
+        String parentId = request.get("parentId");
+        if (parentId == null || parentId.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+
         List<HelpCategoryMapDto> children = service.getChildMappingsByParentId(parentId);
-        return children.isEmpty() ? ResponseEntity.noContent().build() : ResponseEntity.ok(children);
+        return children.isEmpty()
+                ? ResponseEntity.noContent().build()
+                : ResponseEntity.ok(children);
     }
 
-    @GetMapping("/{catId}")
-    public ResponseEntity<List<HelpCategory>> getByCatId(@PathVariable String catId) {
+    @PostMapping("/byId")
+    public ResponseEntity<List<HelpCategory>> getByCatId(@RequestBody Map<String, String> request) {
+
+        String catId = request.get("catId");
+        if (catId == null || catId.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+
         List<HelpCategory> categories = service.getCategoriesByCatId(catId);
-        return categories.isEmpty() ? ResponseEntity.notFound().build() : ResponseEntity.ok(categories);
+        return categories.isEmpty()
+                ? ResponseEntity.notFound().build()
+                : ResponseEntity.ok(categories);
     }
 
     @GetMapping("/categoryMap")

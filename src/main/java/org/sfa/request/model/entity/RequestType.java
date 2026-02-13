@@ -1,7 +1,6 @@
 package org.sfa.request.model.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import org.sfa.request.model.enums.RequestTypeEnum;
 import lombok.*;
 import jakarta.persistence.*;
 
@@ -15,6 +14,7 @@ import java.util.Set;
 @Entity(name = "RequestType")
 @Table(
         name = "request_type",
+        schema = "virginia_dev_saayam_rdbms",
         uniqueConstraints = {
                 @UniqueConstraint(name = "request_type_id_unique", columnNames = "request_type_id")
         }
@@ -22,14 +22,13 @@ import java.util.Set;
 public class RequestType {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "request_type_id", updatable = false)
+    @Column(name = "req_type_id", updatable = false)
     private Integer requestTypeId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "request_type", nullable = false, columnDefinition = "VARCHAR(255)")
-    private RequestTypeEnum type;
+    @Column(name = "req_type", nullable = false, columnDefinition = "VARCHAR(255)")
+    private String type;
 
-    @Column(name = "request_type_desc", columnDefinition = "VARCHAR(255)")
+    @Column(name = "req_type_desc", columnDefinition = "VARCHAR(255)")
     private String description;
 
     @Column(name = "last_updated_date", columnDefinition = "TIMESTAMP")

@@ -1,6 +1,7 @@
 package org.sfa.request.service.impl;
 
 import org.sfa.request.constant.SaayamStatusCode;
+import org.sfa.request.dto.GuestDetailsDTO;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.exception.types.ConflictException;
@@ -54,9 +55,9 @@ import java.util.Optional;
  * based on various validation and business logic scenarios. It also utilizes a MessageSource
  * for internationalization, providing localized success and error messages.
  *
- * @author Fan Peng
- * Create 2024/6/14 23:38
- * @version 1.0
+ * @author Shariq
+ * Create 2025/11/1 23:38
+ * @version 2.0
  */
 @Service
 @RequiredArgsConstructor
@@ -65,10 +66,12 @@ public class RequestServiceImpl implements RequestService {
     private static final Logger logger = LoggerFactory.getLogger(RequestServiceImpl.class);
 
     private final RequestRepository requestRepository;
+    private final RequestGuestDetailsRepository requestGuestDetailsRepository;
     private final RequestStatusRepository requestStatusRepository;
+    private final RequestIsLeadVolunteerRepository requestIsLeadVolunteerRepository;
     private final RequestPriorityRepository requestPriorityRepository;
     private final RequestTypeRepository requestTypeRepository;
-    private final RequestCategoryRepository requestCategoryRepository;
+    private final HelpCategoryRepository helpCategoryRepository;
     private final RequestForRepository requestForRepository;
     private final MessageSource messageSource;
 
@@ -79,20 +82,39 @@ public class RequestServiceImpl implements RequestService {
 
         RequestPriority requestPriority = getRequestPriority(requestDTO.getRequestPriority().getRequestPriorityId(), locale);
         RequestType requestType = getRequestType(requestDTO.getRequestType().getRequestTypeId(), locale);
-        RequestCategory requestCategory = getRequestCategory(requestDTO.getRequestCategory().getRequestCategoryId(), locale);
+        HelpCategory helpCategory = getHelpCategory(requestDTO.getHelpCategory().getCatId(), locale);
         RequestFor requestFor = getRequestFor(requestDTO.getRequestFor().getRequestForId(), locale);
         RequestStatus requestStatus = getRequestStatus(RequestStatusEnum.CREATED.getId(), locale);
+        RequestIsLeadVolunteer isLeadVolunteer = getIsLeadVolunteer(requestDTO.getIsLeadVolunteer(), locale);
 
         Request request = buildRequest(
                 requesterId,
                 requestDTO,
                 requestPriority,
                 requestType,
-                requestCategory,
+                helpCategory,
                 requestFor,
-                requestStatus
+                requestStatus,
+                isLeadVolunteer
         );
         Request savedRequest = requestRepository.save(request);
+
+        if (requestFor.getRequestForId() == 1 && requestDTO.getGuestDetails() != null) {
+            GuestDetailsDTO guestDTO = requestDTO.getGuestDetails();
+
+            RequestGuestDetails guestDetails = RequestGuestDetails.builder()
+                    .requestId(savedRequest.getRequestId())
+                    .reqFname(guestDTO.getReqFname())
+                    .reqLname(guestDTO.getReqLname())
+                    .reqEmail(guestDTO.getReqEmail())
+                    .reqPhone(guestDTO.getReqPhone())
+                    .reqAge(guestDTO.getReqAge())
+                    .reqGender(guestDTO.getReqGender())
+                    .reqPrefLang(guestDTO.getReqPrefLang())
+                    .build();
+
+            requestGuestDetailsRepository.save(guestDetails);
+        }
 
         logger.info("Created request with ID: {}", savedRequest.getRequestId());
         String message = messageSource.getMessage("success.requestCreated", new Object[]{savedRequest.getRequestId()}, locale);
@@ -207,13 +229,20 @@ public class RequestServiceImpl implements RequestService {
     private void validateEnumIds(RequestDTO requestDTO, Locale locale) {
         validateEnumId(requestDTO.getRequestPriority().getRequestPriorityId(), "RequestPriority", locale);
         validateEnumId(requestDTO.getRequestType().getRequestTypeId(), "RequestType", locale);
-        validateEnumId(requestDTO.getRequestCategory().getRequestCategoryId(), "RequestCategory", locale);
+        validateEnumId(requestDTO.getHelpCategory().getCatId(), "HelpCategory", locale); // ✅
         validateEnumId(requestDTO.getRequestFor().getRequestForId(), "RequestFor", locale);
     }
 
+    private RequestIsLeadVolunteer getIsLeadVolunteer(Integer id, Locale locale) {
+        return requestIsLeadVolunteerRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException(
+                        messageSource.getMessage("error.invalidIsLeadVolunteer", new Object[]{id}, locale)
+                ));
+    }
 
-    private void validateEnumId(Integer id, String enumType, Locale locale) {
-        if (id == null || id == 0) {
+
+    private void validateEnumId(Object id, String enumType, Locale locale) {
+        if (id == null) {
             throw new EnumUnspecifiedException(
                     messageSource.getMessage("error.enumUnspecified", new Object[]{enumType}, locale)
             );
@@ -234,10 +263,10 @@ public class RequestServiceImpl implements RequestService {
                 ));
     }
 
-    private RequestCategory getRequestCategory(Integer id, Locale locale) {
-        return requestCategoryRepository.findById(id)
+    private HelpCategory getHelpCategory(String id, Locale locale) {
+        return helpCategoryRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException(
-                        messageSource.getMessage("error.invalidRequestCategory", new Object[]{id}, locale)
+                        messageSource.getMessage("error.invalidHelpCategory", new Object[]{id}, locale)
                 ));
     }
 
@@ -274,9 +303,10 @@ public class RequestServiceImpl implements RequestService {
             RequestDTO requestDTO,
             RequestPriority requestPriority,
             RequestType requestType,
-            RequestCategory requestCategory,
+            HelpCategory helpCategory,
             RequestFor requestFor,
-            RequestStatus requestStatus
+            RequestStatus requestStatus,
+            RequestIsLeadVolunteer isLeadVolunteer
     ) {
         ZonedDateTime now = ZonedDateTime.now();
         return Request.builder()
@@ -284,47 +314,47 @@ public class RequestServiceImpl implements RequestService {
                 .requestStatus(requestStatus)
                 .requestPriority(requestPriority)
                 .requestType(requestType)
-                .requestCategory(requestCategory)
+                .helpCategory(helpCategory)
                 .requestFor(requestFor)
-                .city(requestDTO.getCity())
-                .zipCode(requestDTO.getZipCode())
+                .isLeadVolunteer(isLeadVolunteer)
+                .requestLocation(requestDTO.getRequestLocation())
+                .requestSubject(requestDTO.getRequestSubject())
                 .requestDescription(requestDTO.getRequestDescription())
                 .audioRequestDescription(requestDTO.getAudioRequestDescription())
+                .isCalamity(requestDTO.getIsCalamity())
+                .requestDocumentLink(requestDTO.getRequestDocumentLink())
                 .submittedAt(now)
-                .leadVolunteerUserId(requestDTO.getLeadVolunteerUserId())
                 .servicedAt(requestDTO.getServicedAt())
                 .lastUpdatedAt(now)
+
                 .build();
     }
 
-    private void updateRequestFields(
-            Request request,
-            RequestDTO requestDTO,
-            Locale locale
-    ) {
+    private void updateRequestFields(Request request, RequestDTO requestDTO, Locale locale) {
         Optional.ofNullable(requestDTO.getRequestPriority())
                 .ifPresent(priority -> request.setRequestPriority(getRequestPriority(priority.getRequestPriorityId(), locale)));
 
         Optional.ofNullable(requestDTO.getRequestType())
                 .ifPresent(type -> request.setRequestType(getRequestType(type.getRequestTypeId(), locale)));
 
-        Optional.ofNullable(requestDTO.getRequestCategory())
-                .ifPresent(category -> request.setRequestCategory(getRequestCategory(category.getRequestCategoryId(), locale)));
+        Optional.ofNullable(requestDTO.getHelpCategory())
+                .ifPresent(cat -> request.setHelpCategory(getHelpCategory(cat.getCatId(), locale)));
 
         Optional.ofNullable(requestDTO.getRequestFor())
                 .ifPresent(requestFor -> request.setRequestFor(getRequestFor(requestFor.getRequestForId(), locale)));
 
-        Optional.ofNullable(requestDTO.getCity()).ifPresent(request::setCity);
-
-        Optional.ofNullable(requestDTO.getZipCode()).ifPresent(request::setZipCode);
+        Optional.ofNullable(requestDTO.getRequestLocation()).ifPresent(request::setRequestLocation);
+        Optional.ofNullable(requestDTO.getRequestSubject()).ifPresent(request::setRequestSubject);
 
         Optional.ofNullable(requestDTO.getRequestDescription()).ifPresent(request::setRequestDescription);
+        Optional.ofNullable(requestDTO.getIsCalamity()).ifPresent(request::setIsCalamity);
+        Optional.ofNullable(requestDTO.getRequestDocumentLink()).ifPresent(request::setRequestDocumentLink);
 
         Optional.ofNullable(requestDTO.getAudioRequestDescription()).ifPresent(request::setAudioRequestDescription);
 
-        Optional.ofNullable(requestDTO.getLeadVolunteerUserId()).ifPresent(request::setLeadVolunteerUserId);
+        Optional.ofNullable(requestDTO.getIsLeadVolunteer())
+                .ifPresent(volId -> request.setIsLeadVolunteer(getIsLeadVolunteer(volId, locale)));
 
         Optional.ofNullable(requestDTO.getServicedAt()).ifPresent(request::setServicedAt);
     }
-
 }

@@ -30,3 +30,41 @@ spec:
               value: "<your-database-password>"
             - name: SPRING_PROFILES_ACTIVE
               value: "dev"
+  name: request
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: request
+  template:
+    metadata:
+      labels:
+        app: request
+    spec:
+      containers:
+        - name: request
+          image: request:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: "jdbc:postgresql://localhost:5432/your_database_name"
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "your_username"
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: "your_password"
+            - name: SPRING_PROFILES_ACTIVE
+              value: "dev"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: request
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: request

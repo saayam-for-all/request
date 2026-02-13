@@ -42,6 +42,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-devtools</artifactId>
             <scope>runtime</scope>
@@ -103,28 +109,23 @@
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>sqs</artifactId>
-            <version>2.27.5</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>software.amazon.awssdk</groupId>-->
+<!--            <artifactId>sqs</artifactId>-->
+<!--            <version>2.27.5</version>-->
+<!--        </dependency>-->
 
-        <dependency>
-            <groupId>io.awspring.cloud</groupId>
-            <artifactId>spring-cloud-aws-sqs</artifactId>
-            <version>3.2.0-M1</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>io.awspring.cloud</groupId>-->
+<!--            <artifactId>spring-cloud-aws-sqs</artifactId>-->
+<!--            <version>3.2.0-M1</version>-->
+<!--        </dependency>-->
 
     </dependencies>
 
     <build>
         <plugins>
-
-            <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
-            </plugin>
-
+            <!-- Maven Shade Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -137,25 +138,7 @@
                             <excludes>
                                 <exclude>META-INF/NOTICE.md</exclude>
                                 <exclude>META-INF/LICENSE.md</exclude>
-                                <exclude>META-INF/NOTICE</exclude>
-                                <exclude>META-INF/LICENSE</exclude>
-                                <exclude>META-INF/MANIFEST.MF</exclude>
-                                <exclude>META-INF/DEPENDENCIES</exclude>
-                                <exclude>META-INF/COPYRIGHT</exclude>
-                                <exclude>META-INF/license.txt</exclude>
-                                <exclude>META-INF/notice.txt</exclude>
-                                <exclude>META-INF/NOTICE.txt</exclude>
-                                <exclude>META-INF/LICENSE.txt</exclude>
-                                <exclude>META-INF/spring.tooling</exclude>
-                                <exclude>META-INF/spring/aot.factories</exclude>
-                                <exclude>META-INF/spring-configuration-metadata.json</exclude>
-                                <exclude>META-INF/additional-spring-configuration-metadata.json</exclude>
-                                <exclude>META-INF/spring-autoconfigure-metadata.properties</exclude>
-                                <exclude>META-INF/web-fragment.xml</exclude>
-                                <exclude>META-INF/versions/*/module-info.class</exclude>
-                                <exclude>license.txt</exclude>
-                                <exclude>notice.txt</exclude>
-                                <exclude>module-info.class</exclude>
+                                <!-- Add other exclusions as needed -->
                             </excludes>
                         </filter>
                     </filters>
@@ -170,7 +153,38 @@
                 </executions>
             </plugin>
 
+            <!-- Spring Boot Maven Plugin -->
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>repackage</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Jacoco Plugin -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.8</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
-
 </project>

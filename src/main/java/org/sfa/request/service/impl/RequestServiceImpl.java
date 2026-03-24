@@ -9,6 +9,7 @@ import org.sfa.request.exception.types.EnumUnspecifiedException;
 import org.sfa.request.exception.types.InvalidRequestException;
 import org.sfa.request.exception.types.NotFoundException;
 import org.sfa.request.model.entity.*;
+import org.sfa.request.dto.RequestSummaryDTO;
 import org.sfa.request.model.enums.RequestStatusEnum;
 import org.sfa.request.repository.*;
 import org.sfa.request.response.SaayamResponse;
@@ -128,6 +129,28 @@ public class RequestServiceImpl implements RequestService {
         logger.info("Retrieved request with ID: {}", requestId);
         String message = messageSource.getMessage("success.requestFound", new Object[]{requestId}, locale);
         return SaayamResponse.success(SaayamStatusCode.SUCCESS, message, request);
+    }
+
+
+    @Override
+    @Transactional(readOnly = true)
+    public SaayamResponse<RequestSummaryDTO> getRequestSummary(String requesterId, String requestId, Locale locale) {
+        Request request = findActiveRequest(requesterId, requestId, locale);
+        
+        String duration = calculateDuration(request.getSubmittedAt(), request.getLastUpdatedAt());
+
+        RequestSummaryDTO summaryDTO = RequestSummaryDTO.builder()
+                .reqId(request.getRequestId())
+                .reqPriorityId(request.getRequestPriority() != null ? request.getRequestPriority().getPriorityId() : null)
+                .lastUpdateDate(request.getLastUpdatedAt())
+                .reqLoc(request.getRequestLocation())
+                .servicedDate(request.getServicedAt())
+                .duration(duration)
+                .build();
+
+        logger.info("Retrieved request summary with ID: {}", requestId);
+        String message = messageSource.getMessage("success.requestSummaryFound", new Object[]{requestId}, locale);
+        return SaayamResponse.success(SaayamStatusCode.SUCCESS, message, summaryDTO);
     }
 
     @Override
@@ -356,5 +379,16 @@ public class RequestServiceImpl implements RequestService {
                 .ifPresent(volId -> request.setIsLeadVolunteer(getIsLeadVolunteer(volId, locale)));
 
         Optional.ofNullable(requestDTO.getServicedAt()).ifPresent(request::setServicedAt);
+    }
+
+    private String calculateDuration(ZonedDateTime start, ZonedDateTime end) {
+        if (start == null || end == null) {
+            return null;
+        }
+        java.time.Duration duration = java.time.Duration.between(start, end);
+        long days = duration.toDays();
+        long hours = duration.toHoursPart();
+        long minutes = duration.toMinutesPart();
+        return String.format("%d days, %d hours, %d minutes", days, hours, minutes);
     }
 }

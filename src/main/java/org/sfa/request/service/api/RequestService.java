@@ -3,6 +3,7 @@ package org.sfa.request.service.api;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.model.entity.Request;
 import org.sfa.request.dto.RequestDTO;
+import org.sfa.request.dto.RequestSummaryDTO;
 import org.sfa.request.response.SaayamResponse;
 
 import org.springframework.data.domain.Pageable;
@@ -41,6 +42,7 @@ public interface RequestService {
     SaayamResponse<Request> createRequest(String requesterId, RequestDTO requestDTO, Locale locale);
 
     SaayamResponse<Request> getRequestById(String requesterId, String requestId, Locale locale);
+    SaayamResponse<RequestSummaryDTO> getRequestSummary(String requesterId, String requestId, Locale locale);
 
     SaayamResponse<PagedResponse<Request>> getRequests(String requesterId, Pageable pageable, Locale locale);
 

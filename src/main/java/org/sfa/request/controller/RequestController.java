@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.model.entity.Request;
 import org.sfa.request.dto.RequestDTO;
+import org.sfa.request.dto.RequestSummaryDTO;
 import org.sfa.request.service.api.RequestService;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
@@ -158,6 +159,18 @@ public class RequestController {
     ) {
         Locale locale = localeResolver.resolveLocale(request);
         SaayamResponse<Request> response = requestService.getRequestById(requesterId, requestId, locale);
+        return ResponseEntity.ok(response);
+    }
+
+
+    @GetMapping("/{requestId}/summary")
+    public ResponseEntity<SaayamResponse<RequestSummaryDTO>> getRequestSummary(
+            @PathVariable @NotNull String requestId,
+            @RequestParam @NotNull String requesterId,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+        SaayamResponse<RequestSummaryDTO> response = requestService.getRequestSummary(requesterId, requestId, locale);
         return ResponseEntity.ok(response);
     }
 

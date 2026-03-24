@@ -18,20 +18,21 @@ class RequestStatusTest {
 
         RequestStatus requestStatus = new RequestStatus();
         requestStatus.setRequestStatusId(1);
-        requestStatus.setStatus(RequestStatusEnum.IN_PROGRESS);
+        requestStatus.setStatus(RequestStatusEnum.IN_PROGRESS.name());
         requestStatus.setDescription("This is a test status description");
         requestStatus.setLastUpdatedAt(lastUpdatedAtTime);
         requestStatus.setRequests(requestSet);
 
         assertThat(requestStatus.getRequestStatusId()).isEqualTo(1);
-        assertThat(requestStatus.getStatus()).isEqualTo(RequestStatusEnum.IN_PROGRESS);
+        assertThat(requestStatus.getStatus()).isEqualTo(RequestStatusEnum.IN_PROGRESS.name());
         assertThat(requestStatus.getDescription()).isEqualTo("This is a test status description");
         assertThat(requestStatus.getLastUpdatedAt()).isEqualTo(lastUpdatedAtTime);
         assertThat(requestStatus.getRequests()).isEqualTo(requestSet);
         assertThat(requestStatus.getRequests()).isNotNull();
         assertThat(requestStatus.getRequests()).isEmpty();
 
-        String expectedToString = "RequestStatus(requestStatusId=1, status=IN_PROGRESS, description=This is a test status description, " +
+        String expectedToString = "RequestStatus(requestStatusId=1, status=IN_PROGRESS, description=This is a test status description, "
+                +
                 "lastUpdatedAt=" + lastUpdatedAtTime + ", requests=[])";
         assertThat(requestStatus.toString()).isEqualTo(expectedToString);
 
@@ -43,18 +44,19 @@ class RequestStatusTest {
         ZonedDateTime lastUpdatedAtTime = ZonedDateTime.now();
         Set<Request> requestSet = new HashSet<>();
 
-        RequestStatus requestStatus = new RequestStatus(1, RequestStatusEnum.IN_PROGRESS,
+        RequestStatus requestStatus = new RequestStatus(1, RequestStatusEnum.IN_PROGRESS.name(),
                 "This is a test status description", lastUpdatedAtTime, requestSet);
 
         assertThat(requestStatus.getRequestStatusId()).isEqualTo(1);
-        assertThat(requestStatus.getStatus()).isEqualTo(RequestStatusEnum.IN_PROGRESS);
+        assertThat(requestStatus.getStatus()).isEqualTo(RequestStatusEnum.IN_PROGRESS.name());
         assertThat(requestStatus.getDescription()).isEqualTo("This is a test status description");
         assertThat(requestStatus.getLastUpdatedAt()).isEqualTo(lastUpdatedAtTime);
         assertThat(requestStatus.getRequests()).isEqualTo(requestSet);
         assertThat(requestStatus.getRequests()).isNotNull();
         assertThat(requestStatus.getRequests()).isEmpty();
 
-        String expectedToString = "RequestStatus(requestStatusId=1, status=IN_PROGRESS, description=This is a test status description, " +
+        String expectedToString = "RequestStatus(requestStatusId=1, status=IN_PROGRESS, description=This is a test status description, "
+                +
                 "lastUpdatedAt=" + lastUpdatedAtTime + ", requests=[])";
         assertThat(requestStatus.toString()).isEqualTo(expectedToString);
 
@@ -68,21 +70,21 @@ class RequestStatusTest {
 
         RequestStatus requestStatus1 = new RequestStatus();
         requestStatus1.setRequestStatusId(1);
-        requestStatus1.setStatus(RequestStatusEnum.IN_PROGRESS);
+        requestStatus1.setStatus(RequestStatusEnum.IN_PROGRESS.name());
         requestStatus1.setDescription("This is a test status description");
         requestStatus1.setLastUpdatedAt(lastUpdatedAtTime);
         requestStatus1.setRequests(requestSet);
 
         RequestStatus requestStatus2 = new RequestStatus();
         requestStatus2.setRequestStatusId(1);
-        requestStatus2.setStatus(RequestStatusEnum.IN_PROGRESS);
+        requestStatus2.setStatus(RequestStatusEnum.IN_PROGRESS.name());
         requestStatus2.setDescription("This is a test status description");
         requestStatus2.setLastUpdatedAt(lastUpdatedAtTime);
         requestStatus2.setRequests(requestSet);
 
         RequestStatus requestStatus3 = new RequestStatus();
         requestStatus3.setRequestStatusId(2);
-        requestStatus3.setStatus(RequestStatusEnum.COMPLETED);
+        requestStatus3.setStatus(RequestStatusEnum.COMPLETED.name());
         requestStatus3.setDescription("Different status description");
         requestStatus3.setLastUpdatedAt(lastUpdatedAtTime);
         requestStatus3.setRequests(requestSet);
@@ -129,7 +131,7 @@ class RequestStatusTest {
 
         RequestStatus requestStatus = new RequestStatus();
         requestStatus.setRequestStatusId(1);
-        requestStatus.setStatus(RequestStatusEnum.IN_PROGRESS);
+        requestStatus.setStatus(RequestStatusEnum.IN_PROGRESS.name());
         requestStatus.setDescription("This is a test status description");
         requestStatus.setLastUpdatedAt(lastUpdatedAtTime);
         requestStatus.setRequests(requestSet);
@@ -147,14 +149,14 @@ class RequestStatusTest {
 
         RequestStatus requestStatus1 = new RequestStatus();
         requestStatus1.setRequestStatusId(1);
-        requestStatus1.setStatus(RequestStatusEnum.IN_PROGRESS);
+        requestStatus1.setStatus(RequestStatusEnum.IN_PROGRESS.name());
         requestStatus1.setDescription("This is a test status description");
         requestStatus1.setLastUpdatedAt(lastUpdatedAtTime);
         requestStatus1.setRequests(requestSet);
 
         RequestStatus requestStatus2 = new RequestStatus();
         requestStatus2.setRequestStatusId(1);
-        requestStatus2.setStatus(RequestStatusEnum.IN_PROGRESS);
+        requestStatus2.setStatus(RequestStatusEnum.IN_PROGRESS.name());
         requestStatus2.setDescription("This is a test status description");
         requestStatus2.setLastUpdatedAt(lastUpdatedAtTime);
         requestStatus2.setRequests(requestSet);
@@ -165,7 +167,7 @@ class RequestStatusTest {
     }
 
     @Test
-    void testGetId(){
+    void testGetId() {
         RequestStatus requestStatus = new RequestStatus();
         requestStatus.setRequestStatusId(5);
 

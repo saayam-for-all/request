@@ -1,5 +1,7 @@
 package org.sfa.request.dto;
+import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -7,6 +9,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.ZonedDateTime;
+import java.util.Map;
 
 @Data
 @NoArgsConstructor
@@ -61,4 +64,7 @@ public class RequestDTO {
 
     @NotNull(message = "Request for cannot be null")
     private RequestForDTO requestFor;
+
+    @JsonProperty("additionalFields")
+    private Map<String, Object> additionalFields;
 }

@@ -2,6 +2,7 @@ package org.sfa.request.service.impl;
 
 import org.sfa.request.constant.SaayamStatusCode;
 import org.sfa.request.dto.GuestDetailsDTO;
+import org.sfa.request.dto.ReqAddInfoDTO;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.exception.types.ConflictException;
@@ -24,9 +25,16 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+
 
 /**
  * ClassName: RequestServiceImpl
@@ -74,11 +82,16 @@ public class RequestServiceImpl implements RequestService {
     private final HelpCategoryRepository helpCategoryRepository;
     private final RequestForRepository requestForRepository;
     private final MessageSource messageSource;
+    private final ReqAddInfoRepository reqAddInfoRepository;
+    private final UserRepository userRepository;
 
     @Override
     @Transactional
     public SaayamResponse<Request> createRequest(String requesterId, RequestDTO requestDTO, Locale locale) {
         validateEnumIds(requestDTO, locale);
+
+        String userTimezone = getUserTimezone(requesterId);
+        logger.info("User timezone for {}: {}", requesterId, userTimezone);
 
         RequestPriority requestPriority = getRequestPriority(requestDTO.getRequestPriority().getRequestPriorityId(), locale);
         RequestType requestType = getRequestType(requestDTO.getRequestType().getRequestTypeId(), locale);
@@ -97,29 +110,50 @@ public class RequestServiceImpl implements RequestService {
                 requestStatus,
                 isLeadVolunteer
         );
-        Request savedRequest = requestRepository.save(request);
+        try {
+            Request savedRequest = withRetry("insertHelpRequest", 3, () ->
+                    requestRepository.save(request)
+            );
 
-        if (requestFor.getRequestForId() == 1 && requestDTO.getGuestDetails() != null) {
-            GuestDetailsDTO guestDTO = requestDTO.getGuestDetails();
+            if (requestFor.getRequestForId() == 1 && requestDTO.getGuestDetails() != null) {
+                GuestDetailsDTO guestDTO = requestDTO.getGuestDetails();
 
-            RequestGuestDetails guestDetails = RequestGuestDetails.builder()
-                    .requestId(savedRequest.getRequestId())
-                    .reqFname(guestDTO.getReqFname())
-                    .reqLname(guestDTO.getReqLname())
-                    .reqEmail(guestDTO.getReqEmail())
-                    .reqPhone(guestDTO.getReqPhone())
-                    .reqAge(guestDTO.getReqAge())
-                    .reqGender(guestDTO.getReqGender())
-                    .reqPrefLang(guestDTO.getReqPrefLang())
-                    .build();
+                RequestGuestDetails guestDetails = RequestGuestDetails.builder()
+                        .requestId(savedRequest.getRequestId())
+                        .reqFname(guestDTO.getReqFname())
+                        .reqLname(guestDTO.getReqLname())
+                        .reqEmail(guestDTO.getReqEmail())
+                        .reqPhone(guestDTO.getReqPhone())
+                        .reqAge(guestDTO.getReqAge())
+                        .reqGender(guestDTO.getReqGender())
+                        .reqPrefLang(guestDTO.getReqPrefLang())
+                        .build();
 
-            requestGuestDetailsRepository.save(guestDetails);
-        }
+                withRetry("insertGuestDetails", 3, () -> {
+                    requestGuestDetailsRepository.save(guestDetails);
+                    return null;
+                });
 
-        logger.info("Created request with ID: {}", savedRequest.getRequestId());
-        String message = messageSource.getMessage("success.requestCreated", new Object[]{savedRequest.getRequestId()}, locale);
-        return SaayamResponse.success(SaayamStatusCode.REQUEST_CREATED, message, savedRequest);
+            }
+
+            if (requestDTO.getAdditionalFields() != null
+                    && !requestDTO.getAdditionalFields().isEmpty()) {
+                withRetry("insertAdditionalFields", 3, () -> {
+                    insertAdditionalInfo(savedRequest.getRequestId(),
+                            requestDTO.getAdditionalFields(),
+                            userTimezone);  // ← add this
+                    return null;
+                });
+            }
+
+            logger.info("Created request with ID: {}", savedRequest.getRequestId());
+            String message = messageSource.getMessage("success.requestCreated", new Object[]{savedRequest.getRequestId()}, locale);
+            return SaayamResponse.success(SaayamStatusCode.REQUEST_CREATED, message, savedRequest);
+        } catch (Exception e) {
+        logger.error("createRequest failed after all retries: {}", e.getMessage());
+        throw new RuntimeException(e.getMessage(), e);
     }
+        }
 
     @Override
     @Transactional(readOnly = true)
@@ -356,5 +390,122 @@ public class RequestServiceImpl implements RequestService {
                 .ifPresent(volId -> request.setIsLeadVolunteer(getIsLeadVolunteer(volId, locale)));
 
         Optional.ofNullable(requestDTO.getServicedAt()).ifPresent(request::setServicedAt);
+    }
+
+    private void insertAdditionalInfo(String reqId, Map<String, Object> additionalFields,
+                                      String userTimezone) {
+        for (Map.Entry<String, Object> entry : additionalFields.entrySet()) {
+            String fieldId = entry.getKey();
+            Object value = entry.getValue();
+
+            if (value instanceof List) {
+                // list-type field — one row per selected item
+                List<String> items = (List<String>) value;
+                for (String itemId : items) {
+                    if (itemId == null || itemId.isBlank()) continue;
+                    reqAddInfoRepository.save(ReqAddInfo.builder()
+                            .reqId(reqId)
+                            .fieldId(fieldId)
+                            .itemId(itemId)
+                            .fieldValue(null)
+                            .build());
+                }
+
+            } else if (value instanceof Map) {
+                // date/time field — nested object
+                Map<String, String> dateMap = (Map<String, String>) value;
+                handleDateRangeField(reqId, fieldId, dateMap, userTimezone);
+
+            } else {
+                // string/int/float/currency — one row, itemId is NULL
+                String fieldValue = value != null ? value.toString().trim() : null;
+                reqAddInfoRepository.save(ReqAddInfo.builder()
+                        .reqId(reqId)
+                        .fieldId(fieldId)
+                        .itemId(null)
+                        .fieldValue(fieldValue)
+                        .build());
+            }
+        }
+        logger.info("Inserted {} additional fields for reqId: {}",
+                additionalFields.size(), reqId);
+    }
+
+
+    private <T> T withRetry(String stepName, int maxAttempts,
+                            java.util.concurrent.Callable<T> action) throws Exception {
+        int attempts = 0;
+        Exception lastException = null;
+
+        while (attempts < maxAttempts) {
+            try {
+                attempts++;
+                logger.info("Step '{}' - attempt {}/{}", stepName, attempts, maxAttempts);
+                return action.call();
+            } catch (Exception e) {
+                lastException = e;
+                logger.warn("Step '{}' failed on attempt {}/{}: {}",
+                        stepName, attempts, maxAttempts, e.getMessage());
+                if (attempts < maxAttempts) {
+                    Thread.sleep(100L * attempts); // wait 100ms, 200ms, 300ms
+                }
+            }
+        }
+
+        logger.error("Step '{}' failed after {} attempts", stepName, maxAttempts);
+        throw lastException;
+    }
+
+    private String getUserTimezone(String requesterId) {
+        return userRepository.findTimeZoneByUserId(requesterId)
+                .orElseGet(() -> {
+                    logger.warn("No timezone found for user: {} — defaulting to UTC",
+                            requesterId);
+                    return "UTC";
+                });
+    }
+
+    private void handleDateRangeField(String reqId, String fieldId,
+                                      Map<String, String> dateMap,
+                                      String userTimezone) {
+        ZoneId userZone;
+        try {
+            userZone = ZoneId.of(userTimezone);
+        } catch (Exception e) {
+            logger.warn("Invalid timezone '{}' — defaulting to UTC", userTimezone);
+            userZone = ZoneOffset.UTC;
+        }
+
+        for (Map.Entry<String, String> e : dateMap.entrySet()) {
+            String slot = e.getKey();    // e.g. "6.1.B.1"
+            String value = e.getValue(); // e.g. "2026-03-24T11:37:00"
+
+            if (value == null || value.isBlank()) continue;
+
+            try {
+                String utcValue = LocalDateTime.parse(value)
+                        .atZone(userZone)
+                        .withZoneSameInstant(ZoneOffset.UTC)
+                        .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+
+                logger.info("Date field — slot: {}, local: {}, timezone: {}, UTC: {}",
+                        slot, value, userTimezone, utcValue);
+
+                reqAddInfoRepository.save(ReqAddInfo.builder()
+                        .reqId(reqId)
+                        .fieldId(fieldId)
+                        .itemId(slot)
+                        .fieldValue(utcValue)
+                        .build());
+
+            } catch (Exception ex) {
+                logger.error("Failed to parse date for slot {}: {}", slot, value);
+                throw new InvalidRequestException(
+                        "Invalid date format for field " + fieldId +
+                                " slot " + slot + ": '" + value +
+                                "'. Expected format: '2026-03-24T11:37:00'"
+                );
+            }
+        }
     }
 }

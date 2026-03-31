@@ -18,6 +18,7 @@ import org.sfa.request.service.api.RequestService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -88,6 +89,12 @@ public class RequestServiceImpl implements RequestService {
     @Override
     @Transactional
     public SaayamResponse<Request> createRequest(String requesterId, RequestDTO requestDTO, Locale locale) {
+        if (requesterId == null || requesterId.isBlank()) {
+            throw new InvalidRequestException(
+                    messageSource.getMessage("error.missingRequesterId", null, locale)
+            );
+        }
+
         validateEnumIds(requestDTO, locale);
 
         String userTimezone = getUserTimezone(requesterId);
@@ -149,6 +156,15 @@ public class RequestServiceImpl implements RequestService {
             logger.info("Created request with ID: {}", savedRequest.getRequestId());
             String message = messageSource.getMessage("success.requestCreated", new Object[]{savedRequest.getRequestId()}, locale);
             return SaayamResponse.success(SaayamStatusCode.REQUEST_CREATED, message, savedRequest);
+        } catch (InvalidRequestException e) {
+            // rethrow directly — don't wrap in RuntimeException
+            logger.error("Invalid request in createRequest: {}", e.getMessage());
+            throw e;
+        } catch (DataIntegrityViolationException e) {
+            logger.error("Data integrity violation: {}", e.getMessage());
+            throw new InvalidRequestException(
+                    "Invalid field value — one or more item IDs do not exist in the system"
+            );
         } catch (Exception e) {
         logger.error("createRequest failed after all retries: {}", e.getMessage());
         throw new RuntimeException(e.getMessage(), e);
@@ -442,12 +458,19 @@ public class RequestServiceImpl implements RequestService {
                 attempts++;
                 logger.info("Step '{}' - attempt {}/{}", stepName, attempts, maxAttempts);
                 return action.call();
+            } catch (DataIntegrityViolationException e) {
+                // don't retry — fail immediately with clean error
+                logger.error("Step '{}' — data integrity error, not retrying: {}",
+                        stepName, e.getMessage());
+                throw new InvalidRequestException(
+                        "Invalid field value — one or more item IDs do not exist in the system"
+                );
             } catch (Exception e) {
                 lastException = e;
                 logger.warn("Step '{}' failed on attempt {}/{}: {}",
                         stepName, attempts, maxAttempts, e.getMessage());
                 if (attempts < maxAttempts) {
-                    Thread.sleep(100L * attempts); // wait 100ms, 200ms, 300ms
+                    Thread.sleep(100L * attempts);
                 }
             }
         }

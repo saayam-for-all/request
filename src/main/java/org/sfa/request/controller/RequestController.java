@@ -1,6 +1,5 @@
 package org.sfa.request.controller;
 
-import org.sfa.request.constant.SaayamStatusCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -15,6 +14,7 @@ import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.service.api.RequestService;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
+import org.sfa.request.service.impl.RequestServiceImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +26,7 @@ import org.springframework.web.servlet.LocaleResolver;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Locale;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * ClassName: RequestController
@@ -47,6 +48,7 @@ public class RequestController {
 
     private final RequestService requestService;
     private final LocaleResolver localeResolver;
+    private final RequestServiceImpl requestServiceImpl;
 
     @Operation(
             summary = "Create a new request",
@@ -219,6 +221,39 @@ public class RequestController {
         Locale locale = localeResolver.resolveLocale(request);
         SaayamResponse<Request> response = requestService.resumeRequest(requesterId, requestId, locale);
         return ResponseEntity.ok(response);
+    }
+    @PostMapping("/{requestId}/attachments")
+    public ResponseEntity<?> uploadAttachment(
+            @PathVariable String requestId,
+            @RequestParam String requesterId,
+            @RequestParam("file") MultipartFile file,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+        String path = requestServiceImpl.uploadAttachment(requesterId, requestId, file, locale);
+        return ResponseEntity.ok(path);
+    }
+    @GetMapping("/{requestId}/attachments")
+    public ResponseEntity<?> getAttachments(
+            @PathVariable String requestId,
+            @RequestParam String requesterId,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+        return ResponseEntity.ok(
+                requestServiceImpl.getAttachments(requesterId, requestId, locale)
+        );
+    }
+    @DeleteMapping("/{requestId}/attachments")
+    public ResponseEntity<?> deleteAttachment(
+            @PathVariable String requestId,
+            @RequestParam String requesterId,
+            @RequestParam String filePath,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+        requestServiceImpl.deleteAttachment(requesterId, requestId, filePath, locale);
+        return ResponseEntity.ok("Deleted");
     }
 
 }

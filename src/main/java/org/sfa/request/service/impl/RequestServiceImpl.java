@@ -34,8 +34,15 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-
-
+import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import java.util.UUID;
+import java.util.ArrayList;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import org.springframework.beans.factory.annotation.Value;
 /**
  * ClassName: RequestServiceImpl
  * Package: org.sfa.request.service.impl
@@ -84,6 +91,17 @@ public class RequestServiceImpl implements RequestService {
     private final MessageSource messageSource;
     private final ReqAddInfoRepository reqAddInfoRepository;
     private final UserRepository userRepository;
+
+    private final S3Client s3Client;
+
+    @Value("${saayam.s3.bucket}")
+    private String bucket;
+
+    @Value("${saayam.s3.maxBytes}")
+    private long maxBytes;
+
+    @Value("${saayam.s3.allowedMime}")
+    private String allowedMimeCsv;
 
     @Override
     @Transactional
@@ -507,5 +525,84 @@ public class RequestServiceImpl implements RequestService {
                 );
             }
         }
+    }
+    //
+    @Transactional
+    public String uploadAttachment(String requesterId, String requestId, MultipartFile file, Locale locale) {
+
+        Request request = findActiveRequest(requesterId, requestId, locale);
+        validateFile(file);
+        String key = "requests/" + requestId + "/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
+        try {
+            s3Client.putObject(
+                    PutObjectRequest.builder()
+                            .bucket(bucket)
+                            .key(key)
+                            .contentType(file.getContentType())
+                            .build(),
+                    RequestBody.fromBytes(file.getBytes())
+            );
+        } catch (Exception e) {
+            logger.error("S3 upload failed", e);
+            throw new RuntimeException("Failed to upload file");
+        }
+
+        String s3Path = "s3://" + bucket + "/" + key;
+        saveAttachmentPath(request, s3Path);
+        return s3Path;
+    }
+    private void saveAttachmentPath(Request request, String path) {
+        List<String> existing = parseAttachmentPaths(request.getRequestDocumentLink());
+        if (existing.size() >= 5) {
+            throw new InvalidRequestException("Maximum 5 attachments allowed");
+        }
+        existing.add(path);
+        request.setRequestDocumentLink(toJson(existing));
+        requestRepository.save(request);
+    }
+    private void validateFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new InvalidRequestException("File is empty");
+        }
+        if (file.getSize() > maxBytes) {
+            throw new InvalidRequestException("File size exceeds limit");
+        }
+        String contentType = file.getContentType();
+        List<String> allowed = List.of(allowedMimeCsv.split(","));
+        if (!allowed.contains(contentType)) {
+            throw new InvalidRequestException("Invalid file type");
+        }
+    }
+    private List<String> parseAttachmentPaths(String json) {
+        try {
+            if (json == null || json.isBlank()) return new ArrayList<>();
+            return new ObjectMapper().readValue(json, new TypeReference<List<String>>() {});
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+    }
+
+    private String toJson(List<String> paths) {
+        try {
+            return new ObjectMapper().writeValueAsString(paths);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+    @Transactional(readOnly = true)
+    public List<String> getAttachments(String requesterId, String requestId, Locale locale) {
+        Request request = findActiveRequest(requesterId, requestId, locale);
+        return parseAttachmentPaths(request.getRequestDocumentLink());
+    }
+    @Transactional
+    public void deleteAttachment(String requesterId, String requestId, String filePath, Locale locale) {
+        Request request = findActiveRequest(requesterId, requestId, locale);
+        List<String> paths = parseAttachmentPaths(request.getRequestDocumentLink());
+        if (!paths.remove(filePath)) {
+            throw new NotFoundException("Attachment not found");
+        }
+        request.setRequestDocumentLink(toJson(paths));
+        requestRepository.save(request);
+        logger.info("Deleted attachment {} for request {}", filePath, requestId);
     }
 }

@@ -1,0 +1,7 @@
+saayam:
+  s3:
+    buckets:
+      usPrivate: saayam-virginia-private
+      euPrivate: saayam-ireland-private
+    maxBytes: 2097152
+    allowedMime: image/png,image/jpeg,application/pdf

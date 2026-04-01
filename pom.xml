@@ -120,6 +120,19 @@
 <!--            <artifactId>spring-cloud-aws-sqs</artifactId>-->
 <!--            <version>3.2.0-M1</version>-->
 <!--        </dependency>-->
+        <!-- AWS SDK v2 (S3 + Presigner) -->
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <version>2.25.66</version>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sts</artifactId>
+            <version>2.25.66</version>
+        </dependency>
 
     </dependencies>
 

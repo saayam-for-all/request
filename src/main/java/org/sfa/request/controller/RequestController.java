@@ -25,9 +25,11 @@ import jakarta.validation.constraints.NotNull;
 import org.springframework.web.servlet.LocaleResolver;
 
 import jakarta.servlet.http.HttpServletRequest;
+
+import java.util.List;
 import java.util.Locale;
 import org.springframework.web.multipart.MultipartFile;
-
+import java.util.Map;
 /**
  * ClassName: RequestController
  * Package: org.sfa.request.controller
@@ -222,16 +224,17 @@ public class RequestController {
         SaayamResponse<Request> response = requestService.resumeRequest(requesterId, requestId, locale);
         return ResponseEntity.ok(response);
     }
+    //
     @PostMapping("/{requestId}/attachments")
-    public ResponseEntity<?> uploadAttachment(
+    public ResponseEntity<?> uploadAttachments(
             @PathVariable String requestId,
             @RequestParam String requesterId,
-            @RequestParam("file") MultipartFile file,
+            @RequestParam("files") List<MultipartFile> files,
             HttpServletRequest request
     ) {
         Locale locale = localeResolver.resolveLocale(request);
-        String path = requestServiceImpl.uploadAttachment(requesterId, requestId, file, locale);
-        return ResponseEntity.ok(path);
+        List<String> urls = requestServiceImpl.uploadMultipleAttachments(requesterId, requestId, files, locale);
+        return ResponseEntity.ok(Map.of("fileUrls", urls));
     }
     @GetMapping("/{requestId}/attachments")
     public ResponseEntity<?> getAttachments(
@@ -241,7 +244,7 @@ public class RequestController {
     ) {
         Locale locale = localeResolver.resolveLocale(request);
         return ResponseEntity.ok(
-                requestServiceImpl.getAttachments(requesterId, requestId, locale)
+                Map.of("attachments", requestServiceImpl.getAttachments(requesterId, requestId, locale))
         );
     }
     @DeleteMapping("/{requestId}/attachments")
@@ -253,7 +256,7 @@ public class RequestController {
     ) {
         Locale locale = localeResolver.resolveLocale(request);
         requestServiceImpl.deleteAttachment(requesterId, requestId, filePath, locale);
-        return ResponseEntity.ok("Deleted");
+        return ResponseEntity.ok(Map.of("message", "Attachment deleted successfully"));
     }
 
 }

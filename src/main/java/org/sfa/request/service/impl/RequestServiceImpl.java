@@ -37,6 +37,7 @@ import java.util.Optional;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import java.util.UUID;
 import java.util.ArrayList;
@@ -94,7 +95,7 @@ public class RequestServiceImpl implements RequestService {
 
     private final S3Client s3Client;
 
-    @Value("${saayam.s3.bucket}")
+    @Value("${saayam.s3.buckets.usPrivate}")
     private String bucket;
 
     @Value("${saayam.s3.maxBytes}")
@@ -529,10 +530,18 @@ public class RequestServiceImpl implements RequestService {
     //
     @Transactional
     public String uploadAttachment(String requesterId, String requestId, MultipartFile file, Locale locale) {
-
         Request request = findActiveRequest(requesterId, requestId, locale);
         validateFile(file);
-        String key = "requests/" + requestId + "/" + UUID.randomUUID() + "-" + file.getOriginalFilename();
+
+        String original = file.getOriginalFilename();
+        if (original == null || original.isBlank()) {
+            throw new InvalidRequestException("Invalid file name");
+        }
+        String cleanFileName = original
+                .replaceAll("\\s+", "_")
+                .replaceAll("[^a-zA-Z0-9._-]", "");
+        String fileName = requestId + "_" + System.currentTimeMillis() + "_" + cleanFileName;
+        String key = "requests/" + requestId + "/helpRequestFiles/" + fileName;
         try {
             s3Client.putObject(
                     PutObjectRequest.builder()
@@ -546,10 +555,9 @@ public class RequestServiceImpl implements RequestService {
             logger.error("S3 upload failed", e);
             throw new RuntimeException("Failed to upload file");
         }
-
         String s3Path = "s3://" + bucket + "/" + key;
         saveAttachmentPath(request, s3Path);
-        return s3Path;
+        return buildFileUrlFromS3Path(s3Path);
     }
     private void saveAttachmentPath(Request request, String path) {
         List<String> existing = parseAttachmentPaths(request.getRequestDocumentLink());
@@ -569,13 +577,15 @@ public class RequestServiceImpl implements RequestService {
         }
         String contentType = file.getContentType();
         List<String> allowed = List.of(allowedMimeCsv.split(","));
-        if (!allowed.contains(contentType)) {
+        if (contentType == null || !allowed.contains(contentType)) {
             throw new InvalidRequestException("Invalid file type");
         }
     }
     private List<String> parseAttachmentPaths(String json) {
         try {
-            if (json == null || json.isBlank()) return new ArrayList<>();
+            if (json == null || json.isBlank()) {
+                return new ArrayList<>();
+            }
             return new ObjectMapper().readValue(json, new TypeReference<List<String>>() {});
         } catch (Exception e) {
             return new ArrayList<>();
@@ -586,23 +596,109 @@ public class RequestServiceImpl implements RequestService {
         try {
             return new ObjectMapper().writeValueAsString(paths);
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to convert attachment paths to JSON", e);
         }
     }
     @Transactional(readOnly = true)
     public List<String> getAttachments(String requesterId, String requestId, Locale locale) {
         Request request = findActiveRequest(requesterId, requestId, locale);
-        return parseAttachmentPaths(request.getRequestDocumentLink());
+        List<String> paths = parseAttachmentPaths(request.getRequestDocumentLink());
+        List<String> urls = new ArrayList<>();
+        for (String path : paths) {
+            urls.add(buildFileUrlFromS3Path(path));
+        }
+        return urls;
     }
     @Transactional
     public void deleteAttachment(String requesterId, String requestId, String filePath, Locale locale) {
         Request request = findActiveRequest(requesterId, requestId, locale);
-        List<String> paths = parseAttachmentPaths(request.getRequestDocumentLink());
-        if (!paths.remove(filePath)) {
+        List<String> existingPaths = parseAttachmentPaths(request.getRequestDocumentLink());
+        String normalizedS3Path = normalizeToS3Path(filePath);
+        if (!existingPaths.remove(normalizedS3Path)) {
             throw new NotFoundException("Attachment not found");
         }
-        request.setRequestDocumentLink(toJson(paths));
+        String key = normalizedS3Path.replace("s3://" + bucket + "/", "");
+        try {
+            s3Client.deleteObject(
+                    DeleteObjectRequest.builder()
+                            .bucket(bucket)
+                            .key(key)
+                            .build()
+            );
+        } catch (Exception e) {
+            logger.error("S3 delete failed", e);
+            throw new RuntimeException("Failed to delete file from S3");
+        }
+        request.setRequestDocumentLink(toJson(existingPaths));
         requestRepository.save(request);
-        logger.info("Deleted attachment {} for request {}", filePath, requestId);
+        logger.info("Deleted attachment {} for request {}", normalizedS3Path, requestId);
+    }
+    private String buildFileUrlFromS3Path(String s3Path) {
+        String key = s3Path.replace("s3://" + bucket + "/", "");
+        return "https://" + bucket + ".s3.amazonaws.com/" + key;
+    }
+    private String normalizeToS3Path(String filePath) {
+        if (filePath == null || filePath.isBlank()) {
+            throw new InvalidRequestException("filePath is required");
+        }
+        if (filePath.startsWith("s3://")) {
+            return filePath;
+        }
+        String httpsPrefix = "https://" + bucket + ".s3.amazonaws.com/";
+        if (filePath.startsWith(httpsPrefix)) {
+            String key = filePath.replace(httpsPrefix, "");
+            return "s3://" + bucket + "/" + key;
+        }
+        throw new InvalidRequestException("Unsupported file path format");
+    }
+    @Transactional
+    public List<String> uploadMultipleAttachments(
+            String requesterId,
+            String requestId,
+            List<MultipartFile> files,
+            Locale locale
+    ) {
+        if (files == null || files.isEmpty()) {
+            throw new InvalidRequestException("No files provided");
+        }
+        Request request = findActiveRequest(requesterId, requestId, locale);
+        List<String> existing = parseAttachmentPaths(request.getRequestDocumentLink());
+        if (existing.size() + files.size() > 5) {
+            throw new InvalidRequestException("Maximum 5 attachments allowed");
+        }
+        List<String> newPaths = new ArrayList<>();
+        List<String> responseUrls = new ArrayList<>();
+        for (MultipartFile file : files) {
+            validateFile(file);
+            String original = file.getOriginalFilename();
+            if (original == null || original.isBlank()) {
+                throw new InvalidRequestException("Invalid file name");
+            }
+            String cleanFileName = original
+                    .replaceAll("\\s+", "_")
+                    .replaceAll("[^a-zA-Z0-9._-]", "");
+            String fileName = requestId + "_" + System.currentTimeMillis() + "_" + cleanFileName;
+            String key = "requests/" + requestId + "/helpRequestFiles/" + fileName;
+            try {
+                s3Client.putObject(
+                        PutObjectRequest.builder()
+                                .bucket(bucket)
+                                .key(key)
+                                .contentType(file.getContentType())
+                                .build(),
+                        RequestBody.fromBytes(file.getBytes())
+                );
+            } catch (Exception e) {
+                logger.error("S3 upload failed", e);
+                throw new RuntimeException("Failed to upload file");
+            }
+            String s3Path = "s3://" + bucket + "/" + key;
+            newPaths.add(s3Path);
+            responseUrls.add(buildFileUrlFromS3Path(s3Path));
+        }
+        existing.addAll(newPaths);
+        request.setRequestDocumentLink(toJson(existing));
+        requestRepository.save(request);
+        return responseUrls;
     }
 }

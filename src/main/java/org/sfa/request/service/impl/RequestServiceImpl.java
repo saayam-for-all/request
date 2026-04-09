@@ -25,22 +25,19 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.File;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import java.util.UUID;
-import java.util.ArrayList;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.springframework.beans.factory.annotation.Value;
@@ -94,7 +91,6 @@ public class RequestServiceImpl implements RequestService {
     private final UserRepository userRepository;
 
     private final S3Client s3Client;
-
     @Value("${saayam.s3.buckets.usPrivate}")
     private String bucket;
 
@@ -103,6 +99,7 @@ public class RequestServiceImpl implements RequestService {
 
     @Value("${saayam.s3.allowedMime}")
     private String allowedMimeCsv;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     @Transactional
@@ -527,130 +524,7 @@ public class RequestServiceImpl implements RequestService {
             }
         }
     }
-    //
-    @Transactional
-    public String uploadAttachment(String requesterId, String requestId, MultipartFile file, Locale locale) {
-        Request request = findActiveRequest(requesterId, requestId, locale);
-        validateFile(file);
 
-        String original = file.getOriginalFilename();
-        if (original == null || original.isBlank()) {
-            throw new InvalidRequestException("Invalid file name");
-        }
-        String cleanFileName = original
-                .replaceAll("\\s+", "_")
-                .replaceAll("[^a-zA-Z0-9._-]", "");
-        String fileName = requestId + "_" + System.currentTimeMillis() + "_" + cleanFileName;
-        String key = "requests/" + requestId + "/helpRequestFiles/" + fileName;
-        try {
-            s3Client.putObject(
-                    PutObjectRequest.builder()
-                            .bucket(bucket)
-                            .key(key)
-                            .contentType(file.getContentType())
-                            .build(),
-                    RequestBody.fromBytes(file.getBytes())
-            );
-        } catch (Exception e) {
-            logger.error("S3 upload failed", e);
-            throw new RuntimeException("Failed to upload file");
-        }
-        String s3Path = "s3://" + bucket + "/" + key;
-        saveAttachmentPath(request, s3Path);
-        return buildFileUrlFromS3Path(s3Path);
-    }
-    private void saveAttachmentPath(Request request, String path) {
-        List<String> existing = parseAttachmentPaths(request.getRequestDocumentLink());
-        if (existing.size() >= 5) {
-            throw new InvalidRequestException("Maximum 5 attachments allowed");
-        }
-        existing.add(path);
-        request.setRequestDocumentLink(toJson(existing));
-        requestRepository.save(request);
-    }
-    private void validateFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new InvalidRequestException("File is empty");
-        }
-        if (file.getSize() > maxBytes) {
-            throw new InvalidRequestException("File size exceeds limit");
-        }
-        String contentType = file.getContentType();
-        List<String> allowed = List.of(allowedMimeCsv.split(","));
-        if (contentType == null || !allowed.contains(contentType)) {
-            throw new InvalidRequestException("Invalid file type");
-        }
-    }
-    private List<String> parseAttachmentPaths(String json) {
-        try {
-            if (json == null || json.isBlank()) {
-                return new ArrayList<>();
-            }
-            return new ObjectMapper().readValue(json, new TypeReference<List<String>>() {});
-        } catch (Exception e) {
-            return new ArrayList<>();
-        }
-    }
-
-    private String toJson(List<String> paths) {
-        try {
-            return new ObjectMapper().writeValueAsString(paths);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to convert attachment paths to JSON", e);
-        }
-    }
-    @Transactional(readOnly = true)
-    public List<String> getAttachments(String requesterId, String requestId, Locale locale) {
-        Request request = findActiveRequest(requesterId, requestId, locale);
-        List<String> paths = parseAttachmentPaths(request.getRequestDocumentLink());
-        List<String> urls = new ArrayList<>();
-        for (String path : paths) {
-            urls.add(buildFileUrlFromS3Path(path));
-        }
-        return urls;
-    }
-    @Transactional
-    public void deleteAttachment(String requesterId, String requestId, String filePath, Locale locale) {
-        Request request = findActiveRequest(requesterId, requestId, locale);
-        List<String> existingPaths = parseAttachmentPaths(request.getRequestDocumentLink());
-        String normalizedS3Path = normalizeToS3Path(filePath);
-        if (!existingPaths.remove(normalizedS3Path)) {
-            throw new NotFoundException("Attachment not found");
-        }
-        String key = normalizedS3Path.replace("s3://" + bucket + "/", "");
-        try {
-            s3Client.deleteObject(
-                    DeleteObjectRequest.builder()
-                            .bucket(bucket)
-                            .key(key)
-                            .build()
-            );
-        } catch (Exception e) {
-            logger.error("S3 delete failed", e);
-            throw new RuntimeException("Failed to delete file from S3");
-        }
-        request.setRequestDocumentLink(toJson(existingPaths));
-        requestRepository.save(request);
-        logger.info("Deleted attachment {} for request {}", normalizedS3Path, requestId);
-    }
-    private String buildFileUrlFromS3Path(String s3Path) {
-        String key = s3Path.replace("s3://" + bucket + "/", "");
-        return "https://" + bucket + ".s3.amazonaws.com/" + key;
-    }
-    private String normalizeToS3Path(String filePath) {
-        if (filePath == null || filePath.isBlank()) {
-            throw new InvalidRequestException("filePath is required");
-        }
-        if (filePath.startsWith("s3://")) {
-            return filePath;
-        }
-        String httpsPrefix = "https://" + bucket + ".s3.amazonaws.com/";
-        if (filePath.startsWith(httpsPrefix)) {
-            String key = filePath.replace(httpsPrefix, "");
-            return "s3://" + bucket + "/" + key;
-        }
-        throw new InvalidRequestException("Unsupported file path format");
-    }
     @Transactional
     public List<String> uploadMultipleAttachments(
             String requesterId,
@@ -663,7 +537,11 @@ public class RequestServiceImpl implements RequestService {
         }
         Request request = findActiveRequest(requesterId, requestId, locale);
         List<String> existing = parseAttachmentPaths(request.getRequestDocumentLink());
-        if (existing.size() + files.size() > 5) {
+        // count only valid files (present in S3)
+        List<String> validExisting = existing.stream()
+                .filter(path -> doesFileExist(getKey(path)))
+                .toList();
+        if (validExisting.size() + files.size() > 5) {
             throw new InvalidRequestException("Maximum 5 attachments allowed");
         }
         List<String> newPaths = new ArrayList<>();
@@ -689,8 +567,7 @@ public class RequestServiceImpl implements RequestService {
                         RequestBody.fromBytes(file.getBytes())
                 );
             } catch (Exception e) {
-                logger.error("S3 upload failed", e);
-                throw new RuntimeException("Failed to upload file");
+                throw new RuntimeException("Failed to upload file", e);
             }
             String s3Path = "s3://" + bucket + "/" + key;
             newPaths.add(s3Path);
@@ -701,17 +578,116 @@ public class RequestServiceImpl implements RequestService {
         requestRepository.save(request);
         return responseUrls;
     }
-    public void deleteDirectFromS3(String key) {
+    @Transactional
+    public List<Map<String, String>> getAttachments(
+            String requesterId,
+            String requestId,
+            Locale locale
+    ) {
+        Request request = findActiveRequest(requesterId, requestId, locale);
+        List<String> paths = parseAttachmentPaths(request.getRequestDocumentLink());
+        List<String> validPaths = new ArrayList<>();
+        List<Map<String, String>> response = new ArrayList<>();
+        for (String path : paths) {
+            String key = getKey(path);
+            if (!doesFileExist(key)) {
+                continue;
+            }
+            validPaths.add(path);
+            String fileName = key.substring(key.lastIndexOf("/") + 1);
+            response.add(Map.of(
+                    "fileName", fileName,
+                    "url", buildFileUrlFromS3Path(path)
+            ));
+        }
+        // auto clean DB
+        if (validPaths.size() != paths.size()) {
+            request.setRequestDocumentLink(toJson(validPaths));
+            requestRepository.save(request);
+        }
+        return response;
+    }
+    @Transactional
+    public void deleteAttachment(
+            String requesterId,
+            String requestId,
+            String fileName,
+            Locale locale
+    ) {
+        Request request = findActiveRequest(requesterId, requestId, locale);
+        List<String> existingPaths = parseAttachmentPaths(request.getRequestDocumentLink());
+        String matchedPath = existingPaths.stream()
+                .filter(p -> p.endsWith(fileName))
+                .findFirst()
+                .orElseThrow(() -> new NotFoundException("Attachment not found"));
+        String key = getKey(matchedPath);
+        if (doesFileExist(key)) {
+            try {
+                s3Client.deleteObject(
+                        DeleteObjectRequest.builder()
+                                .bucket(bucket)
+                                .key(key)
+                                .build()
+                );
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to delete file from S3", e);
+            }
+        }
+        // always clean DB
+        existingPaths.remove(matchedPath);
+        request.setRequestDocumentLink(toJson(existingPaths));
+        requestRepository.save(request);
+    }
+    private void validateFile(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new InvalidRequestException("File is empty");
+        }
+        if (file.getSize() > maxBytes) {
+            throw new InvalidRequestException("File size exceeds limit");
+        }
+        String contentType = file.getContentType();
+        List<String> allowed = Arrays.stream(allowedMimeCsv.split(","))
+                .map(String::trim)
+                .toList();
+        if (contentType == null || !allowed.contains(contentType)) {
+            throw new InvalidRequestException("Invalid file type");
+        }
+    }
+    private List<String> parseAttachmentPaths(String json) {
         try {
-            s3Client.deleteObject(
-                    DeleteObjectRequest.builder()
+            if (json == null || json.isBlank()) {
+                return new ArrayList<>();
+            }
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (Exception e) {
+            return new ArrayList<>();
+        }
+    }
+    private String toJson(List<String> paths) {
+        try {
+            return objectMapper.writeValueAsString(paths);
+        } catch (Exception e) {
+            throw new RuntimeException("JSON conversion failed", e);
+        }
+    }
+    private String buildFileUrlFromS3Path(String s3Path) {
+        String key = getKey(s3Path);
+        return "https://" + bucket + ".s3.amazonaws.com/" + key;
+    }
+    private String getKey(String s3Path) {
+        return s3Path.replace("s3://" + bucket + "/", "");
+    }
+    private boolean doesFileExist(String key) {
+        try {
+            s3Client.headObject(
+                    software.amazon.awssdk.services.s3.model.HeadObjectRequest.builder()
                             .bucket(bucket)
                             .key(key)
                             .build()
             );
+            return true;
         } catch (Exception e) {
-            logger.error("Direct S3 delete failed", e);
-            throw new RuntimeException("Failed to delete file from S3");
+            return false;
         }
     }
 }

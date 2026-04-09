@@ -226,7 +226,7 @@ public class RequestController {
         SaayamResponse<Request> response = requestService.resumeRequest(requesterId, requestId, locale);
         return ResponseEntity.ok(response);
     }
-    //
+
     @PostMapping(
             value = "/{requestId}/attachments",
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE
@@ -251,26 +251,20 @@ public class RequestController {
     ) {
         Locale locale = localeResolver.resolveLocale(request);
         return ResponseEntity.ok(
-                Map.of("attachments", requestServiceImpl.getAttachments(requesterId, requestId, locale))
+                Map.of("attachments",
+                        requestServiceImpl.getAttachments(requesterId, requestId, locale))
         );
     }
     @DeleteMapping("/{requestId}/attachments")
     public ResponseEntity<?> deleteAttachment(
             @PathVariable String requestId,
             @RequestParam String requesterId,
-            @RequestParam String filePath,
+            @RequestParam String fileName,
             HttpServletRequest request
     ) {
         Locale locale = localeResolver.resolveLocale(request);
-        requestServiceImpl.deleteAttachment(requesterId, requestId, filePath, locale);
+        requestServiceImpl.deleteAttachment(requesterId, requestId, fileName, locale);
         return ResponseEntity.ok(Map.of("message", "Attachment deleted successfully"));
-    }
-    @DeleteMapping("/cleanup/s3")
-    public ResponseEntity<?> deleteFromS3Direct(
-            @RequestParam String key
-    ) {
-        requestServiceImpl.deleteDirectFromS3(key);
-        return ResponseEntity.ok(Map.of("message", "Deleted directly from S3"));
     }
 
 }

@@ -701,4 +701,17 @@ public class RequestServiceImpl implements RequestService {
         requestRepository.save(request);
         return responseUrls;
     }
+    public void deleteDirectFromS3(String key) {
+        try {
+            s3Client.deleteObject(
+                    DeleteObjectRequest.builder()
+                            .bucket(bucket)
+                            .key(key)
+                            .build()
+            );
+        } catch (Exception e) {
+            logger.error("Direct S3 delete failed", e);
+            throw new RuntimeException("Failed to delete file from S3");
+        }
+    }
 }

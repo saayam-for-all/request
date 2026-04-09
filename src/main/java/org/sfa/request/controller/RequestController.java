@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.sfa.request.service.impl.RequestServiceImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -26,6 +27,7 @@ import org.springframework.web.servlet.LocaleResolver;
 
 import jakarta.servlet.http.HttpServletRequest;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.web.multipart.MultipartFile;
@@ -225,7 +227,10 @@ public class RequestController {
         return ResponseEntity.ok(response);
     }
     //
-    @PostMapping("/{requestId}/attachments")
+    @PostMapping(
+            value = "/{requestId}/attachments",
+            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
+    )
     public ResponseEntity<?> uploadAttachments(
             @PathVariable String requestId,
             @RequestParam String requesterId,
@@ -233,7 +238,9 @@ public class RequestController {
             HttpServletRequest request
     ) {
         Locale locale = localeResolver.resolveLocale(request);
-        List<String> urls = requestServiceImpl.uploadMultipleAttachments(requesterId, requestId, files, locale);
+        List<String> urls = requestServiceImpl.uploadMultipleAttachments(
+                requesterId, requestId, files, locale
+        );
         return ResponseEntity.ok(Map.of("fileUrls", urls));
     }
     @GetMapping("/{requestId}/attachments")
@@ -257,6 +264,13 @@ public class RequestController {
         Locale locale = localeResolver.resolveLocale(request);
         requestServiceImpl.deleteAttachment(requesterId, requestId, filePath, locale);
         return ResponseEntity.ok(Map.of("message", "Attachment deleted successfully"));
+    }
+    @DeleteMapping("/cleanup/s3")
+    public ResponseEntity<?> deleteFromS3Direct(
+            @RequestParam String key
+    ) {
+        requestServiceImpl.deleteDirectFromS3(key);
+        return ResponseEntity.ok(Map.of("message", "Deleted directly from S3"));
     }
 
 }

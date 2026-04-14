@@ -428,9 +428,17 @@ public class RequestServiceImpl implements RequestService {
                 }
 
             } else if (value instanceof Map) {
-                // date/time field — nested object
-                Map<String, String> dateMap = (Map<String, String>) value;
-                handleDateRangeField(reqId, fieldId, dateMap, userTimezone);
+                Map<String, String> nestedMap = (Map<String, String>) value;
+
+                // check if it's a date/time field or currency/other nested field
+                boolean isDateField = nestedMap.keySet().stream()
+                        .anyMatch(k -> k.endsWith("_date") || k.endsWith("_time"));
+
+                if (isDateField) {
+                    handleDateRangeField(reqId, fieldId, nestedMap, userTimezone);
+                } else {
+                    handleNestedValueField(reqId, fieldId, nestedMap);
+                }
 
             } else {
                 // string/int/float/currency — one row, itemId is NULL
@@ -499,36 +507,77 @@ public class RequestServiceImpl implements RequestService {
             userZone = ZoneOffset.UTC;
         }
 
-        for (Map.Entry<String, String> e : dateMap.entrySet()) {
-            String slot = e.getKey();    // e.g. "6.1.B.1"
-            String value = e.getValue(); // e.g. "2026-03-24T11:37:00"
+        // group date and time by slot
+        Map<String, String> dateBySlot = new java.util.HashMap<>();
+        Map<String, String> timeBySlot = new java.util.HashMap<>();
 
-            if (value == null || value.isBlank()) continue;
+        for (Map.Entry<String, String> e : dateMap.entrySet()) {
+            String key = e.getKey();   // e.g. "6.1.B.1_date" or "6.1.B.1_time"
+            String val = e.getValue();
+
+            if (key.endsWith("_date")) {
+                String slot = key.replace("_date", ""); // "6.1.B.1"
+                dateBySlot.put(slot, val);
+            } else if (key.endsWith("_time")) {
+                String slot = key.replace("_time", ""); // "6.1.B.1"
+                timeBySlot.put(slot, val);
+            }
+        }
+
+        // combine date + time per slot and convert to UTC
+        for (String slot : dateBySlot.keySet()) {
+            String date = dateBySlot.get(slot);  // "2026-04-10"
+            String time = timeBySlot.getOrDefault(slot, "00:00"); // "10:00"
+            String combined = date + "T" + time + ":00"; // "2026-04-10T10:00:00"
 
             try {
-                String utcValue = LocalDateTime.parse(value)
-                        .atZone(userZone)
+                ZoneId finalUserZone = userZone;
+                String utcValue = LocalDateTime.parse(combined)
+                        .atZone(finalUserZone)
                         .withZoneSameInstant(ZoneOffset.UTC)
                         .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
-                logger.info("Date field — slot: {}, local: {}, timezone: {}, UTC: {}",
-                        slot, value, userTimezone, utcValue);
+                logger.info("Date field — slot: {}, combined: {}, timezone: {}, UTC: {}",
+                        slot, combined, userTimezone, utcValue);
+
+                // standalone field: slot == fieldId → item_id = null
+                // list sub-item: slot != fieldId → item_id = slot
+                boolean isStandalone = slot.equals(fieldId);
 
                 reqAddInfoRepository.save(ReqAddInfo.builder()
                         .reqId(reqId)
                         .fieldId(fieldId)
-                        .itemId(slot)
+                        .itemId(isStandalone ? null : slot)
                         .fieldValue(utcValue)
                         .build());
 
             } catch (Exception ex) {
-                logger.error("Failed to parse date for slot {}: {}", slot, value);
+                logger.error("Failed to parse date for slot {}: {}", slot, combined);
                 throw new InvalidRequestException(
                         "Invalid date format for field " + fieldId +
-                                " slot " + slot + ": '" + value +
-                                "'. Expected format: '2026-03-24T11:37:00'"
+                                " slot " + slot + ". Expected date: 'YYYY-MM-DD' and time: 'HH:mm'"
                 );
             }
+        }
+    }
+
+    private void handleNestedValueField(String reqId, String fieldId,
+                                        Map<String, String> nestedMap) {
+        for (Map.Entry<String, String> e : nestedMap.entrySet()) {
+            String itemId = e.getKey();       // e.g. "4.3.3.C.1"
+            String fieldValue = e.getValue(); // e.g. "100"
+
+            if (fieldValue == null || fieldValue.isBlank()) continue;
+
+            logger.info("Nested value field — fieldId: {}, itemId: {}, value: {}",
+                    fieldId, itemId, fieldValue);
+
+            reqAddInfoRepository.save(ReqAddInfo.builder()
+                    .reqId(reqId)
+                    .fieldId(fieldId)
+                    .itemId(itemId)
+                    .fieldValue(fieldValue)
+                    .build());
         }
     }
 }

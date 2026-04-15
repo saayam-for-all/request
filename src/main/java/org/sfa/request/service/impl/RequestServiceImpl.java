@@ -762,4 +762,73 @@ public class RequestServiceImpl implements RequestService {
             return false;
         }
     }
+    @Transactional
+    public List<String> uploadBase64Attachments(
+            String requesterId,
+            String requestId,
+            List<Map<String, String>> files,
+            Locale locale
+    ) {
+        if (files == null || files.isEmpty()) {
+            throw new InvalidRequestException("No files provided");
+        }
+        Request request = findActiveRequest(requesterId, requestId, locale);
+        List<String> existing = parseAttachmentPaths(request.getRequestDocumentLink());
+        List<String> validExisting = existing.stream()
+                .filter(path -> doesFileExist(getKey(path)))
+                .toList();
+
+        if (validExisting.size() + files.size() > 5) {
+            throw new InvalidRequestException("Maximum 5 attachments allowed");
+        }
+        List<String> newPaths = new ArrayList<>();
+        List<String> responseUrls = new ArrayList<>();
+        for (Map<String, String> file : files) {
+            String fileNameRaw = file.get("fileName");
+            String base64 = file.get("base64");
+            String contentType = file.get("contentType");
+            if (fileNameRaw == null || base64 == null || contentType == null) {
+                throw new InvalidRequestException("Invalid file payload");
+            }
+            byte[] fileBytes;
+            try {
+                fileBytes = Base64.getDecoder().decode(base64);
+            } catch (Exception e) {
+                throw new InvalidRequestException("Invalid base64 format");
+            }
+            if (fileBytes.length > maxBytes) {
+                throw new InvalidRequestException("File size exceeds limit");
+            }
+            List<String> allowed = Arrays.stream(allowedMimeCsv.split(","))
+                    .map(String::trim)
+                    .toList();
+            if (!allowed.contains(contentType)) {
+                throw new InvalidRequestException("Invalid file type");
+            }
+            String cleanFileName = fileNameRaw
+                    .replaceAll("\\s+", "_")
+                    .replaceAll("[^a-zA-Z0-9._-]", "");
+            String finalFileName = requestId + "_" + System.currentTimeMillis() + "_" + cleanFileName;
+            String key = "requests/" + requestId + "/helpRequestFiles/" + finalFileName;
+            try {
+                s3Client.putObject(
+                        PutObjectRequest.builder()
+                                .bucket(bucket)
+                                .key(key)
+                                .contentType(contentType)
+                                .build(),
+                        RequestBody.fromBytes(fileBytes)
+                );
+            } catch (Exception e) {
+                throw new RuntimeException("Failed to upload file", e);
+            }
+            String s3Path = "s3://" + bucket + "/" + key;
+            newPaths.add(s3Path);
+            responseUrls.add(buildFileUrlFromS3Path(s3Path));
+        }
+        existing.addAll(newPaths);
+        request.setRequestDocumentLink(toJson(existing));
+        requestRepository.save(request);
+        return responseUrls;
+    }
 }

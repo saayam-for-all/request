@@ -227,25 +227,26 @@ public class RequestController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping(
-            value = "/{requestId}/attachments",
-            consumes = MediaType.MULTIPART_FORM_DATA_VALUE
-    )
+    @PostMapping("/attachments")
     public ResponseEntity<?> uploadAttachments(
-            @PathVariable String requestId,
+            @RequestParam String requestId,
             @RequestParam String requesterId,
-            @RequestParam("files") List<MultipartFile> files,
+            @RequestBody Map<String, List<Map<String, String>>> body,
             HttpServletRequest request
     ) {
         Locale locale = localeResolver.resolveLocale(request);
-        List<String> urls = requestServiceImpl.uploadMultipleAttachments(
+
+        List<Map<String, String>> files = body.get("files");
+
+        List<String> urls = requestServiceImpl.uploadBase64Attachments(
                 requesterId, requestId, files, locale
         );
+
         return ResponseEntity.ok(Map.of("fileUrls", urls));
     }
-    @GetMapping("/{requestId}/attachments")
+    @GetMapping("/attachments/view")
     public ResponseEntity<?> getAttachments(
-            @PathVariable String requestId,
+            @RequestParam String requestId,
             @RequestParam String requesterId,
             HttpServletRequest request
     ) {
@@ -255,9 +256,9 @@ public class RequestController {
                         requestServiceImpl.getAttachments(requesterId, requestId, locale))
         );
     }
-    @DeleteMapping("/{requestId}/attachments")
+    @DeleteMapping("/attachments")
     public ResponseEntity<?> deleteAttachment(
-            @PathVariable String requestId,
+            @RequestParam String requestId,
             @RequestParam String requesterId,
             @RequestParam String fileName,
             HttpServletRequest request

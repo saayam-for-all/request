@@ -15,29 +15,20 @@ import java.util.Map;
 
 @Slf4j
 public class DeleteAttachmentHandler extends BaseRequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
-
     private static final RequestServiceImpl requestService = context.getBean(RequestServiceImpl.class);
-
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context ctx) {
-
         try {
-            Map<String, String> query = event.getQueryStringParameters();
-
-            if (query == null) {
-                throw new InvalidRequestException("Missing query parameters");
+            Map<String, String> body = objectMapper.readValue(event.getBody(), Map.class);
+            String requestId = body.get("requestId");
+            String requesterId = body.get("requesterId");
+            String fileName = body.get("fileName");
+            if (requestId == null || requesterId == null || fileName == null) {
+                throw new InvalidRequestException("Missing required fields");
             }
-
-            String requestId = query.get("requestId");
-            String requesterId = query.get("requesterId");
-            String fileName = query.get("fileName");
-
             Locale locale = getLocaleFromRequest(event);
-
             requestService.deleteAttachment(requesterId, requestId, fileName, locale);
-
             return createResponse(200, Map.of("message", "Attachment deleted successfully"));
-
         } catch (NotFoundException e) {
             return createErrorResponse(404, SaayamStatusCode.REQUEST_NOT_FOUND, e.getMessage());
         } catch (InvalidRequestException e) {

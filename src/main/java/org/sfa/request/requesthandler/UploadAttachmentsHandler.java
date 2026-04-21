@@ -16,36 +16,28 @@ import java.util.Map;
 
 @Slf4j
 public class UploadAttachmentsHandler extends BaseRequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
-
     private static final RequestServiceImpl requestService = context.getBean(RequestServiceImpl.class);
-
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent event, Context ctx) {
-
         try {
             Map<String, Object> body = objectMapper.readValue(event.getBody(), Map.class);
-
             String requestId = (String) body.get("requestId");
             String requesterId = (String) body.get("requesterId");
             List<Map<String, String>> files = (List<Map<String, String>>) body.get("files");
-
             Locale locale = getLocaleFromRequest(event);
-
             List<String> urls = requestService.uploadBase64Attachments(
                     requesterId,
                     requestId,
                     files,
                     locale
             );
-
             return createResponse(200, Map.of("fileUrls", urls));
-
         } catch (NotFoundException e) {
             return createErrorResponse(404, SaayamStatusCode.REQUEST_NOT_FOUND, e.getMessage());
         } catch (InvalidRequestException e) {
             return createErrorResponse(400, SaayamStatusCode.REQUEST_CONFLICT, e.getMessage());
         } catch (Exception e) {
-            log.error("Upload error", e);
+            //log.error("Upload error", e);
             return LambdaExceptionHandler.handleException(e, ctx, getLocaleFromRequest(event));
         }
     }

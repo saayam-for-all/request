@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.sfa.request.exception.types.InvalidRequestException;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.model.entity.Request;
 import org.sfa.request.dto.RequestDTO;
@@ -235,13 +236,13 @@ public class RequestController {
             HttpServletRequest request
     ) {
         Locale locale = localeResolver.resolveLocale(request);
-
         List<Map<String, String>> files = body.get("files");
-
+        if (files == null || files.isEmpty()) {
+            throw new InvalidRequestException("No files provided");
+        }
         List<String> urls = requestServiceImpl.uploadBase64Attachments(
                 requesterId, requestId, files, locale
         );
-
         return ResponseEntity.ok(Map.of("fileUrls", urls));
     }
     @GetMapping("/attachments/view")

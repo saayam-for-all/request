@@ -42,6 +42,7 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.springframework.beans.factory.annotation.Value;
+import lombok.extern.slf4j.Slf4j;
 /**
  * ClassName: RequestServiceImpl
  * Package: org.sfa.request.service.impl
@@ -73,6 +74,7 @@ import org.springframework.beans.factory.annotation.Value;
  * Create 2025/11/1 23:38
  * @version 2.0
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class RequestServiceImpl implements RequestService {
@@ -609,7 +611,6 @@ public class RequestServiceImpl implements RequestService {
         }
         Request request = findActiveRequest(requesterId, requestId, locale);
         List<String> existing = parseAttachmentPaths(request.getRequestDocumentLink());
-        // count only valid files (present in S3)
         List<String> validExisting = existing.stream()
                 .filter(path -> doesFileExist(getKey(path)))
                 .toList();
@@ -657,6 +658,7 @@ public class RequestServiceImpl implements RequestService {
             Locale locale
     ) {
         Request request = findActiveRequest(requesterId, requestId, locale);
+        //log.info("ATTACHMENT JSON FROM DB: {}", request.getRequestDocumentLink());
         List<String> paths = parseAttachmentPaths(request.getRequestDocumentLink());
         List<String> validPaths = new ArrayList<>();
         List<Map<String, String>> response = new ArrayList<>();
@@ -672,7 +674,6 @@ public class RequestServiceImpl implements RequestService {
                     "url", buildFileUrlFromS3Path(path)
             ));
         }
-        // auto clean DB
         if (validPaths.size() != paths.size()) {
             request.setRequestDocumentLink(toJson(validPaths));
             requestRepository.save(request);
@@ -688,8 +689,14 @@ public class RequestServiceImpl implements RequestService {
     ) {
         Request request = findActiveRequest(requesterId, requestId, locale);
         List<String> existingPaths = parseAttachmentPaths(request.getRequestDocumentLink());
+        if (existingPaths.isEmpty()) {
+            throw new NotFoundException("No attachments found");
+        }
         String matchedPath = existingPaths.stream()
-                .filter(p -> p.endsWith(fileName))
+                .filter(p -> {
+                    String key = getKey(p);
+                    return key.substring(key.lastIndexOf("/") + 1).equals(fileName);
+                })
                 .findFirst()
                 .orElseThrow(() -> new NotFoundException("Attachment not found"));
         String key = getKey(matchedPath);
@@ -705,7 +712,6 @@ public class RequestServiceImpl implements RequestService {
                 throw new RuntimeException("Failed to delete file from S3", e);
             }
         }
-        // always clean DB
         existingPaths.remove(matchedPath);
         request.setRequestDocumentLink(toJson(existingPaths));
         requestRepository.save(request);
@@ -777,10 +783,12 @@ public class RequestServiceImpl implements RequestService {
         List<String> validExisting = existing.stream()
                 .filter(path -> doesFileExist(getKey(path)))
                 .toList();
-
         if (validExisting.size() + files.size() > 5) {
             throw new InvalidRequestException("Maximum 5 attachments allowed");
         }
+        List<String> allowed = Arrays.stream(allowedMimeCsv.split(","))
+                .map(String::trim)
+                .toList();
         List<String> newPaths = new ArrayList<>();
         List<String> responseUrls = new ArrayList<>();
         for (Map<String, String> file : files) {
@@ -799,9 +807,6 @@ public class RequestServiceImpl implements RequestService {
             if (fileBytes.length > maxBytes) {
                 throw new InvalidRequestException("File size exceeds limit");
             }
-            List<String> allowed = Arrays.stream(allowedMimeCsv.split(","))
-                    .map(String::trim)
-                    .toList();
             if (!allowed.contains(contentType)) {
                 throw new InvalidRequestException("Invalid file type");
             }

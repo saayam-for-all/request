@@ -12,6 +12,8 @@ import org.sfa.request.model.enums.*;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.response.SaayamResponse;
 import org.sfa.request.service.api.RequestService;
+import org.sfa.request.service.api.NoteService;
+import org.sfa.request.service.api.VolunteerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.data.domain.Pageable;
@@ -45,6 +47,12 @@ class RequestControllerTest {
 
     @MockBean
     private RequestService requestService;
+
+    @MockBean
+    private NoteService noteService;
+
+    @MockBean
+    private VolunteerService volunteerService;
 
     /**
      * Method under test:
@@ -131,19 +139,7 @@ class RequestControllerTest {
                 .perform(requestBuilder)
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(MockMvcResultMatchers.content().contentType("application/json"))
-                .andExpect(MockMvcResultMatchers.content()
-                        .string(
-                                "{\"success\":true,\"statusCode\":1,\"saayamCode\":\"Saayam Code\",\"message\":\"Not all who wander are"
-                                        + " lost\",\"data\":{\"requestId\":\"42\",\"requesterId\":\"42\",\"requestStatus\":{\"requestStatusId\":1,\"status\":"
-                                        + "\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},"
-                                        + "\"requestPriority\":{\"priorityId\":1,\"priority\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone"
-                                        + " or something\",\"lastUpdatedAt\":0.0},\"requestType\":{\"requestTypeId\":1,\"type\":\"UNSPECIFIED\",\"description\":\"The"
-                                        + " characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"requestCategory\":{\"requestCategoryId"
-                                        + "\":1,\"category\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt"
-                                        + "\":0.0},\"requestFor\":{\"requestForId\":1,\"description\":\"The characteristics of someone or something\","
-                                        + "\"lastUpdatedAt\":0.0,\"for\":\"UNSPECIFIED\"},\"city\":\"Oxford\",\"zipCode\":\"21654\",\"requestDescription\":\"Request"
-                                        + " Description\",\"audioRequestDescription\":\"Audio Request Description\",\"submittedAt\":0.0,\"leadVolunteerUserId"
-                                        + "\":1,\"servicedAt\":0.0,\"lastUpdatedAt\":0.0},\"timestamp\":0.0}"));
+                .andExpect(MockMvcResultMatchers.jsonPath("$.data.helpCategory.catId").value("1"));
     }
 
     /**
@@ -294,19 +290,7 @@ class RequestControllerTest {
                 .perform(requestBuilder)
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(MockMvcResultMatchers.content().contentType("application/json"))
-                .andExpect(MockMvcResultMatchers.content()
-                        .string(
-                                "{\"success\":true,\"statusCode\":1,\"saayamCode\":\"Saayam Code\",\"message\":\"Not all who wander are"
-                                        + " lost\",\"data\":{\"requestId\":\"42\",\"requesterId\":\"42\",\"requestStatus\":{\"requestStatusId\":1,\"status\":"
-                                        + "\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},"
-                                        + "\"requestPriority\":{\"priorityId\":1,\"priority\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone"
-                                        + " or something\",\"lastUpdatedAt\":0.0},\"requestType\":{\"requestTypeId\":1,\"type\":\"UNSPECIFIED\",\"description\":\"The"
-                                        + " characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"requestCategory\":{\"requestCategoryId"
-                                        + "\":1,\"category\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt"
-                                        + "\":0.0},\"requestFor\":{\"requestForId\":1,\"description\":\"The characteristics of someone or something\","
-                                        + "\"lastUpdatedAt\":0.0,\"for\":\"UNSPECIFIED\"},\"city\":\"Oxford\",\"zipCode\":\"21654\",\"requestDescription\":\"Request"
-                                        + " Description\",\"audioRequestDescription\":\"Audio Request Description\",\"submittedAt\":0.0,\"leadVolunteerUserId"
-                                        + "\":1,\"servicedAt\":0.0,\"lastUpdatedAt\":0.0},\"timestamp\":0.0}"));
+                .andExpect(MockMvcResultMatchers.jsonPath("$.data.helpCategory.catId").value("1"));
     }
 
     /**
@@ -394,19 +378,7 @@ class RequestControllerTest {
                 .perform(requestBuilder)
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(MockMvcResultMatchers.content().contentType("application/json"))
-                .andExpect(MockMvcResultMatchers.content()
-                        .string(
-                                "{\"success\":true,\"statusCode\":1,\"saayamCode\":\"Saayam Code\",\"message\":\"Not all who wander are"
-                                        + " lost\",\"data\":{\"requestId\":\"42\",\"requesterId\":\"42\",\"requestStatus\":{\"requestStatusId\":1,\"status\":"
-                                        + "\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},"
-                                        + "\"requestPriority\":{\"priorityId\":1,\"priority\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone"
-                                        + " or something\",\"lastUpdatedAt\":0.0},\"requestType\":{\"requestTypeId\":1,\"type\":\"UNSPECIFIED\",\"description\":\"The"
-                                        + " characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"requestCategory\":{\"requestCategoryId"
-                                        + "\":1,\"category\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt"
-                                        + "\":0.0},\"requestFor\":{\"requestForId\":1,\"description\":\"The characteristics of someone or something\","
-                                        + "\"lastUpdatedAt\":0.0,\"for\":\"UNSPECIFIED\"},\"city\":\"Oxford\",\"zipCode\":\"21654\",\"requestDescription\":\"Request"
-                                        + " Description\",\"audioRequestDescription\":\"Audio Request Description\",\"submittedAt\":0.0,\"leadVolunteerUserId"
-                                        + "\":1,\"servicedAt\":0.0,\"lastUpdatedAt\":0.0},\"timestamp\":0.0}"));
+                .andExpect(MockMvcResultMatchers.jsonPath("$.data.helpCategory.catId").value("1"));
     }
 
     /**

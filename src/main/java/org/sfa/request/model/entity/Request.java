@@ -113,7 +113,6 @@ public class Request implements Serializable {
     private ZonedDateTime submittedAt;
 
 //    @Column(name = "lead_volunteer_user_id")
-    @Transient
     private Integer leadVolunteerUserId;
 
     @Column(name = "serviced_date", columnDefinition = "TIMESTAMP")

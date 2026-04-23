@@ -184,6 +184,7 @@ CREATE TABLE IF NOT EXISTS request (
     submission_date TIMESTAMP,
     serviced_date TIMESTAMP,
     last_update_date TIMESTAMP,
+    lead_volunteer_user_id VARCHAR(255),
     FOREIGN KEY (req_user_id) REFERENCES users (user_id),
     FOREIGN KEY (req_status_id) REFERENCES request_status (req_status_id),
     FOREIGN KEY (req_priority_id) REFERENCES request_priority (req_priority_id),
@@ -221,3 +222,33 @@ BEGIN
     END IF;
 END;
 ' LANGUAGE plpgsql;
+
+-- ==========================================================
+-- STEP 6: Request Notes and Volunteers (for Request Details tabs)
+-- ==========================================================
+-- Add lead volunteer to request (shown on main page)
+ALTER TABLE request
+    ADD COLUMN IF NOT EXISTS lead_volunteer_user_id VARCHAR(255);
+
+-- Link table: helping volunteers per request
+CREATE TABLE IF NOT EXISTS request_volunteers (
+    request_volunteer_id BIGSERIAL PRIMARY KEY,
+    req_id VARCHAR(255) NOT NULL,
+    volunteer_user_id VARCHAR(255) NOT NULL,
+    added_by_user_id VARCHAR(255),
+    added_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT fk_rv_request FOREIGN KEY (req_id) REFERENCES request (req_id),
+    CONSTRAINT uq_rv_req_vol UNIQUE (req_id, volunteer_user_id)
+);
+
+-- Notes per request
+CREATE TABLE IF NOT EXISTS request_notes (
+    note_id BIGSERIAL PRIMARY KEY,
+    req_id VARCHAR(255) NOT NULL,
+    author_user_id VARCHAR(255),
+    persona VARCHAR(50),
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    CONSTRAINT fk_rn_request FOREIGN KEY (req_id) REFERENCES request (req_id)
+);

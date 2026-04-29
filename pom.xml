@@ -109,19 +109,7 @@
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
-<!--        <dependency>-->
-<!--            <groupId>software.amazon.awssdk</groupId>-->
-<!--            <artifactId>sqs</artifactId>-->
-<!--            <version>2.27.5</version>-->
-<!--        </dependency>-->
-
-<!--        <dependency>-->
-<!--            <groupId>io.awspring.cloud</groupId>-->
-<!--            <artifactId>spring-cloud-aws-sqs</artifactId>-->
-<!--            <version>3.2.0-M1</version>-->
-<!--        </dependency>-->
-        <!-- AWS SDK v2 (S3 + Presigner) -->
-
+        <!-- AWS SDK v2 -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>
             <artifactId>s3</artifactId>
@@ -198,7 +186,7 @@
                     </execution>
                 </executions>
             </plugin>
-            
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>

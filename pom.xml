@@ -72,6 +72,8 @@
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
+            <version>1.18.36</version>
+            <scope>provided</scope>
             <optional>true</optional>
         </dependency>
 
@@ -198,7 +200,11 @@
                     </execution>
                 </executions>
             </plugin>
+<<<<<<< Updated upstream
             
+=======
+
+>>>>>>> Stashed changes
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -216,6 +222,15 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
+<<<<<<< Updated upstream
+=======
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <skipTests>true</skipTests>
+                </configuration>
+            </plugin>
+>>>>>>> Stashed changes
         </plugins>
     </build>
 </project>

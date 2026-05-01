@@ -1,0 +1,31 @@
+{
+  "Comment": "Request Processing Workflow - Triggered when a new request is created",
+  "StartAt": "ProcessRequest",
+  "States": {
+    "ProcessRequest": {
+      "Type": "Pass",
+      "Comment": "Initial state that receives the created request as input",
+      "Parameters": {
+        "requestId.$": "$.requestId",
+        "requesterId.$": "$.requesterId",
+        "requestDescription.$": "$.requestDescription",
+        "requestPriority.$": "$.requestPriority",
+        "requestType.$": "$.requestType",
+        "requestStatus.$": "$.requestStatus",
+        "submittedAt.$": "$.submittedAt",
+        "message": "Request received and ready for processing"
+      },
+      "ResultPath": "$.processedRequest",
+      "Next": "LogRequest"
+    },
+    "LogRequest": {
+      "Type": "Pass",
+      "Comment": "Log the request details for tracking",
+      "Parameters": {
+        "logMessage": "Request processed successfully",
+        "requestData.$": "$.processedRequest"
+      },
+      "End": true
+    }
+  }
+}

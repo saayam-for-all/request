@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.model.entity.Request;
 import org.sfa.request.dto.RequestDTO;
+import org.sfa.request.dto.RequestSqsDTO;
 import org.sfa.request.service.api.RequestService;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
@@ -50,9 +51,10 @@ public class RequestController {
     private RequestService requestService;
     @Autowired
     private LocaleResolver localeResolver;
-
-//    private final SQSService sqsService;
-//    private final MessageSource messageSource;
+    @Autowired
+    private SQSService sqsService;
+    @Autowired
+    private MessageSource messageSource;
 
     @Operation(
             summary = "Create a new request",
@@ -225,20 +227,35 @@ public class RequestController {
         return ResponseEntity.ok(response);
     }
 
-//    @PostMapping("/{requestId}/sendToQueue")
-//    public ResponseEntity<SaayamResponse<Void>> sendRequestToQueue(
-//            @PathVariable @NotNull String requesterId,
-//            @PathVariable @NotNull String requestId,
-//            HttpServletRequest request
-//    ) {
-//        Locale locale = localeResolver.resolveLocale(request);
-//        SaayamResponse<Request> requestResponse = requestService.getRequestById(requesterId, requestId, locale);
-//        Request foundRequest = requestResponse.getData();
-//
-//        String message = JsonConverter.convertRequestToJson(foundRequest);
-//        sqsService.sendMessage(message);
-//
-//        String successMessage = messageSource.getMessage("success.requestSentToQueue", new Object[]{requestId}, locale);
-//        return ResponseEntity.ok(SaayamResponse.success(SaayamStatusCode.REQUEST_SENT_TO_QUEUE, successMessage, null));
-//    }
+    @PostMapping("/{requestId}/sendToQueue")
+    public ResponseEntity<SaayamResponse<Void>> sendRequestToQueue(
+            @PathVariable @NotNull String requesterId,
+            @PathVariable @NotNull String requestId,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+        SaayamResponse<Request> requestResponse = requestService.getRequestById(requesterId, requestId, locale);
+        Request foundRequest = requestResponse.getData();
+        
+        if (foundRequest == null) {
+            throw new RuntimeException("Request not found");
+        }
+
+        // Build the message with requestId, requesterId, and description
+        RequestSqsDTO sqsMessage = RequestSqsDTO.builder()
+                .requestId(foundRequest.getRequestId())
+                .requesterId(foundRequest.getRequesterId())
+                .requestDescription(foundRequest.getRequestDescription())
+                .build();
+
+        try {
+            sqsService.sendMessage(sqsMessage);
+            String successMessage = messageSource.getMessage("success.requestSentToQueue", new Object[]{requestId}, locale);
+            return ResponseEntity.ok(SaayamResponse.success(SaayamStatusCode.REQUEST_SENT_TO_QUEUE, successMessage, null));
+        } catch (Exception e) {
+            String errorMessage = "Failed to send request to SQS: " + e.getMessage();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(SaayamResponse.error(HttpStatus.INTERNAL_SERVER_ERROR.value(), SaayamStatusCode.EXTERNAL_SERVICE_ERROR, errorMessage));
+        }
+    }
 }

@@ -34,5 +34,6 @@ public class HelpCategory {
             orphanRemoval = true,
             fetch = FetchType.LAZY
     )
+    @Builder.Default
     private Set<Request> requests = new HashSet<>();
 }

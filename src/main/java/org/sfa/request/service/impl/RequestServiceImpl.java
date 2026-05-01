@@ -3,6 +3,7 @@ package org.sfa.request.service.impl;
 import org.sfa.request.constant.SaayamStatusCode;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.dto.RequestDTO;
+import org.sfa.request.dto.StepFunctionInputDTO;
 import org.sfa.request.exception.types.ConflictException;
 import org.sfa.request.exception.types.EnumUnspecifiedException;
 import org.sfa.request.exception.types.InvalidRequestException;
@@ -13,6 +14,7 @@ import org.sfa.request.repository.*;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
 import org.sfa.request.service.api.RequestService;
+import org.sfa.request.service.api.StepFunctionService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
@@ -73,6 +75,7 @@ public class RequestServiceImpl implements RequestService {
     private final MessageSource messageSource;
     private final RequestIsLeadVolRepository requestIsLeadVolRepository;
     private final HelpCategoryRepository helpCategoryRepository;
+    private final StepFunctionService stepFunctionService;
 
     @Override
     @Transactional
@@ -99,8 +102,18 @@ public class RequestServiceImpl implements RequestService {
         );
         Request savedRequest = requestRepository.save(request);
 
-       // logger.info("Created request with ID: {}", savedRequest.get);
-      String message = messageSource.getMessage("success.requestCreated", new Object[]{savedRequest.getRequestId()}, locale);
+        // Trigger Step Function execution after request is saved
+        try {
+            StepFunctionInputDTO stepFunctionInput = buildStepFunctionInput(savedRequest);
+            String executionArn = stepFunctionService.startExecution(stepFunctionInput);
+            logger.info("Step Function execution started for request: {} with ARN: {}", 
+                savedRequest.getRequestId(), executionArn);
+        } catch (Exception e) {
+            logger.error("Failed to start Step Function for request: {}", savedRequest.getRequestId(), e);
+            // Continue even if Step Function fails - request is already saved
+        }
+
+        String message = messageSource.getMessage("success.requestCreated", new Object[]{savedRequest.getRequestId()}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_CREATED, message, savedRequest);
     }
 
@@ -328,6 +341,21 @@ public class RequestServiceImpl implements RequestService {
                 .lastUpdatedAt(now)
                 .requestIsLeadVol(requestIsLeadVol)
                 .requestSubject("Test")
+                .build();
+    }
+
+    private StepFunctionInputDTO buildStepFunctionInput(Request request) {
+        return StepFunctionInputDTO.builder()
+                .requestId(request.getRequestId())
+                .requesterId(request.getRequesterId())
+                .requestDescription(request.getRequestDescription())
+                .requestPriority(request.getRequestPriority().getPriority().name())
+                .requestType(request.getRequestType().getType().name())
+                .requestStatus(request.getRequestStatus().getStatus().name())
+                .requestCategory(request.getHelpCategory().getCatId())
+                .city(request.getCity())
+                .zipCode(request.getZipCode())
+                .submittedAt(request.getSubmittedAt())
                 .build();
     }
 

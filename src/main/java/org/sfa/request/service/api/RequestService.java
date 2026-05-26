@@ -4,6 +4,8 @@ import org.sfa.request.response.PagedResponse;
 import org.sfa.request.model.entity.Request;
 import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.response.SaayamResponse;
+import org.sfa.request.dto.RequestCommentDTO;
+import java.util.List;
 
 import org.springframework.data.domain.Pageable;
 
@@ -26,4 +28,10 @@ public interface RequestService {
     SaayamResponse<Void> deleteRequest(String requesterId, String requestId, Locale locale);
     SaayamResponse<Request> cancelRequest(String requesterId, String requestId, Locale locale);
     SaayamResponse<Request> resumeRequest(String requesterId, String requestId, Locale locale);
+
+    // CRUD Comments
+    RequestCommentDTO addComment(RequestCommentDTO dto);
+    List<RequestCommentDTO> getComments(String requestId);
+    RequestCommentDTO updateComment(Long id, String comment);
+    void deleteComment(Long id);
 }

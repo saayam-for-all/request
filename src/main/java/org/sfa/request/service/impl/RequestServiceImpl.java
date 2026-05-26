@@ -27,6 +27,15 @@ import java.time.ZonedDateTime;
 import java.util.Locale;
 import java.util.Optional;
 
+import org.sfa.request.dto.RequestCommentDTO;
+import org.sfa.request.model.entity.RequestComment;
+import org.sfa.request.repository.RequestCommentRepository;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
 /**
  * ClassName: RequestServiceImpl
  * Package: org.sfa.request.service.impl
@@ -359,6 +368,59 @@ public class RequestServiceImpl implements RequestService {
         Optional.ofNullable(requestDTO.getLeadVolunteerUserId()).ifPresent(request::setLeadVolunteerUserId);
 
         Optional.ofNullable(requestDTO.getServicedAt()).ifPresent(request::setServicedAt);
+    }
+    @Autowired
+    private RequestCommentRepository commentRepository;
+
+    @Override
+    public RequestCommentDTO addComment(RequestCommentDTO dto) {
+
+        RequestComment entity = RequestComment.builder()
+                .requestId(dto.getRequestId())
+                .comment(dto.getComment())
+                .createdBy(dto.getCreatedBy())
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        return mapToDTO(commentRepository.save(entity));
+    }
+
+    @Override
+    public List<RequestCommentDTO> getComments(String requestId) {
+        return commentRepository.findByRequestId(requestId)
+                .stream()
+                .map(this::mapToDTO)
+                .toList();
+    }
+
+    @Override
+    public RequestCommentDTO updateComment(Long id, String comment) {
+
+        RequestComment entity = commentRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Comment not found"));
+
+        entity.setComment(comment);
+        entity.setUpdatedAt(LocalDateTime.now());
+
+        return mapToDTO(commentRepository.save(entity));
+    }
+
+    @Override
+    public void deleteComment(Long id) {
+        if (!commentRepository.existsById(id)) {
+            throw new NotFoundException("Comment not found");
+        }
+        commentRepository.deleteById(id);
+    }
+
+    private RequestCommentDTO mapToDTO(RequestComment entity) {
+        return RequestCommentDTO.builder()
+                .id(entity.getId())
+                .requestId(entity.getRequestId())
+                .comment(entity.getComment())
+                .createdBy(entity.getCreatedBy())
+                .createdAt(entity.getCreatedAt())
+                .build();
     }
 
 }

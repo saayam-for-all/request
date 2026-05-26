@@ -1,5 +1,6 @@
 package org.sfa.request.controller;
 
+import java.util.List;
 import org.sfa.request.constant.SaayamStatusCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,7 +31,7 @@ import org.sfa.request.service.api.SQSService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.Locale;
-
+import org.sfa.request.dto.RequestCommentDTO;
 /**
  * ClassName: RequestController
  * Package: org.sfa.request.controller
@@ -68,56 +69,56 @@ public class RequestController {
                             schema = @Schema(implementation = SaayamResponse.class),
                             examples = @ExampleObject(
                                     value = """
-                {
-                  "success": true,
-                  "statusCode": 201,
-                  "saayamCode": "SAAAYAM-1201",
-                  "message": "Request REQ-00-000-000-0017 has been successfully created and saved in the system",
-                  "data": {
-                    "requestId": "REQ-00-000-000-0017",
-                    "requesterId": "SID-00-000-000-0001",
-                    "requestStatus": {
-                      "requestStatusId": 1,
-                      "status": "CREATED",
-                      "description": "Request has been created",
-                      "lastUpdatedAt": "2024-07-15T19:37:44.653792Z"
-                    },
-                    "requestPriority": {
-                      "priorityId": 1,
-                      "priority": "LOW",
-                      "description": "Low priority",
-                      "lastUpdatedAt": "2024-07-15T19:37:44.65499Z"
-                    },
-                    "requestType": {
-                      "requestTypeId": 1,
-                      "type": "IN_PERSON",
-                      "description": "In-person request",
-                      "lastUpdatedAt": "2024-07-15T19:37:44.65581Z"
-                    },
-                    "requestCategory": {
-                      "requestCategoryId": 1,
-                      "category": "TECHNICAL_SUPPORT",
-                      "description": "Technical support request",
-                      "lastUpdatedAt": "2024-07-15T19:37:44.656694Z"
-                    },
-                    "requestFor": {
-                      "requestForId": 1,
-                      "description": "Request for self",
-                      "lastUpdatedAt": "2024-07-15T19:37:44.657513Z",
-                      "for": "SELF"
-                    },
-                    "city": "MD",
-                    "zipCode": "2288",
-                    "requestDescription": "Need technical support",
-                    "audioRequestDescription": "Audio description of the request",
-                    "submittedAt": "2024-07-16T23:03:21.4388422-04:00",
-                    "leadVolunteerUserId": 123,
-                    "servicedAt": null,
-                    "lastUpdatedAt": "2024-07-16T23:03:21.4388422-04:00"
-                  },
-                  "timestamp": "2024-07-16T23:03:21.471842-04:00"
-                }
-                """
+                                            {
+                                              "success": true,
+                                              "statusCode": 201,
+                                              "saayamCode": "SAAAYAM-1201",
+                                              "message": "Request REQ-00-000-000-0017 has been successfully created and saved in the system",
+                                              "data": {
+                                                "requestId": "REQ-00-000-000-0017",
+                                                "requesterId": "SID-00-000-000-0001",
+                                                "requestStatus": {
+                                                  "requestStatusId": 1,
+                                                  "status": "CREATED",
+                                                  "description": "Request has been created",
+                                                  "lastUpdatedAt": "2024-07-15T19:37:44.653792Z"
+                                                },
+                                                "requestPriority": {
+                                                  "priorityId": 1,
+                                                  "priority": "LOW",
+                                                  "description": "Low priority",
+                                                  "lastUpdatedAt": "2024-07-15T19:37:44.65499Z"
+                                                },
+                                                "requestType": {
+                                                  "requestTypeId": 1,
+                                                  "type": "IN_PERSON",
+                                                  "description": "In-person request",
+                                                  "lastUpdatedAt": "2024-07-15T19:37:44.65581Z"
+                                                },
+                                                "requestCategory": {
+                                                  "requestCategoryId": 1,
+                                                  "category": "TECHNICAL_SUPPORT",
+                                                  "description": "Technical support request",
+                                                  "lastUpdatedAt": "2024-07-15T19:37:44.656694Z"
+                                                },
+                                                "requestFor": {
+                                                  "requestForId": 1,
+                                                  "description": "Request for self",
+                                                  "lastUpdatedAt": "2024-07-15T19:37:44.657513Z",
+                                                  "for": "SELF"
+                                                },
+                                                "city": "MD",
+                                                "zipCode": "2288",
+                                                "requestDescription": "Need technical support",
+                                                "audioRequestDescription": "Audio description of the request",
+                                                "submittedAt": "2024-07-16T23:03:21.4388422-04:00",
+                                                "leadVolunteerUserId": 123,
+                                                "servicedAt": null,
+                                                "lastUpdatedAt": "2024-07-16T23:03:21.4388422-04:00"
+                                              },
+                                              "timestamp": "2024-07-16T23:03:21.471842-04:00"
+                                            }
+                                            """
                             )
                     )
             ),
@@ -129,14 +130,14 @@ public class RequestController {
                             schema = @Schema(implementation = SaayamResponse.class),
                             examples = @ExampleObject(
                                     value = """
-                {
-                  "success": false,
-                  "statusCode": 400,
-                  "saayamCode": "SAAAYAM-1413",
-                  "message": "Invalid value: Unspecified or null value is not allowed for RequestPriority. Please provide a valid option",
-                  "timestamp": "2024-07-17T19:02:55.2930539-04:00"
-                }
-                """
+                                            {
+                                              "success": false,
+                                              "statusCode": 400,
+                                              "saayamCode": "SAAAYAM-1413",
+                                              "message": "Invalid value: Unspecified or null value is not allowed for RequestPriority. Please provide a valid option",
+                                              "timestamp": "2024-07-17T19:02:55.2930539-04:00"
+                                            }
+                                            """
                             )
                     )
             )
@@ -241,4 +242,80 @@ public class RequestController {
 //        String successMessage = messageSource.getMessage("success.requestSentToQueue", new Object[]{requestId}, locale);
 //        return ResponseEntity.ok(SaayamResponse.success(SaayamStatusCode.REQUEST_SENT_TO_QUEUE, successMessage, null));
 //    }
+
+    @PostMapping("/{requestId}/comments")
+    public ResponseEntity<SaayamResponse<RequestCommentDTO>> addComment(
+            @PathVariable String requesterId,
+            @PathVariable String requestId,
+            @RequestBody RequestCommentDTO dto) {
+
+        // Link the path variables to the DTO
+        dto.setRequestId(requestId);
+
+        // Optional but recommended: Set the creator of the comment automatically
+        // to the requesterId hitting the endpoint, if not provided in the payload.
+        if (dto.getCreatedBy() == null || dto.getCreatedBy().isEmpty()) {
+            dto.setCreatedBy(requesterId);
+        }
+
+        RequestCommentDTO response = requestService.addComment(dto);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                SaayamResponse.success(
+                        SaayamStatusCode.SUCCESS,
+                        "Comment added successfully",
+                        response
+                )
+        );
+    }
+
+    @GetMapping("/{requestId}/comments")
+    public ResponseEntity<SaayamResponse<List<RequestCommentDTO>>> getComments(
+            @PathVariable String requesterId, // Required due to class-level mapping
+            @PathVariable String requestId) {
+
+        List<RequestCommentDTO> response = requestService.getComments(requestId);
+
+        return ResponseEntity.ok(
+                SaayamResponse.success(
+                        SaayamStatusCode.SUCCESS,
+                        "Comments fetched successfully",
+                        response
+                )
+        );
+    }
+
+    @PutMapping("/comments/{id}")
+    public ResponseEntity<SaayamResponse<RequestCommentDTO>> updateComment(
+            @PathVariable String requesterId, // Added: Required due to class-level mapping
+            @PathVariable Long id,
+            @RequestBody RequestCommentDTO dto) { // Changed: Expect JSON object instead of raw string
+
+        // Extract the comment string from the parsed DTO
+        RequestCommentDTO response = requestService.updateComment(id, dto.getComment());
+
+        return ResponseEntity.ok(
+                SaayamResponse.success(
+                        SaayamStatusCode.SUCCESS,
+                        "Comment updated successfully",
+                        response
+                )
+        );
+    }
+
+    @DeleteMapping("/comments/{id}")
+    public ResponseEntity<SaayamResponse<String>> deleteComment(
+            @PathVariable String requesterId, // Added: Required due to class-level mapping
+            @PathVariable Long id) {
+
+        requestService.deleteComment(id);
+
+        return ResponseEntity.ok(
+                SaayamResponse.success(
+                        SaayamStatusCode.SUCCESS,
+                        "Comment deleted successfully",
+                        "Deleted successfully"
+                )
+        );
+    }
 }

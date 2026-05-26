@@ -221,3 +221,20 @@ BEGIN
     END IF;
 END;
 ' LANGUAGE plpgsql;
+
+-- ==========================================================
+-- Issue #17 - CRUD Comments
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS request_comment (
+    id BIGSERIAL PRIMARY KEY,
+    request_id VARCHAR(255) NOT NULL,
+    comment TEXT NOT NULL,
+    created_by VARCHAR(100),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP,
+
+    CONSTRAINT fk_request
+        FOREIGN KEY(request_id)
+        REFERENCES request(req_id)
+        ON DELETE CASCADE
+);

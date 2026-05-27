@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: saayam-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: saayam
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Saayam#123
+    ports:
+      - "5438:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  request:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: request
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/saayam
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=Saayam#123
+      - SPRING_PROFILES_ACTIVE=dev
+
+volumes:
+  postgres-data:

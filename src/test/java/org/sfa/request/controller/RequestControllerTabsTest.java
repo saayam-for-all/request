@@ -106,7 +106,7 @@ class RequestControllerTabsTest {
     void addHelper_createsHelper() throws Exception {
         when(localeResolver.resolveLocale(any(HttpServletRequest.class))).thenReturn(Locale.ENGLISH);
         var out = new HelperVolunteerDTO("SID-V2", "SID-L1", ZonedDateTime.now());
-        when(volunteerService.addHelper(anyString(), anyString(), any(HelperVolunteerDTO.class), anyInt(), any())).thenReturn(
+        when(volunteerService.addHelper(anyString(), anyString(), any(HelperVolunteerDTO.class), any())).thenReturn(
                 SaayamResponse.success(SaayamStatusCode.SUCCESS, "ok", out)
         );
         String body = new ObjectMapper().writeValueAsString(new HelperVolunteerDTO("SID-V2", "SID-L1", null));
@@ -124,7 +124,7 @@ class RequestControllerTabsTest {
     @Test
     void removeHelper_deletes() throws Exception {
         when(localeResolver.resolveLocale(any(HttpServletRequest.class))).thenReturn(Locale.ENGLISH);
-        when(volunteerService.removeHelper(anyString(), anyString(), anyString(), anyInt(), any())).thenReturn(
+        when(volunteerService.removeHelper(anyString(), anyString(), anyString(), any())).thenReturn(
                 SaayamResponse.success(SaayamStatusCode.SUCCESS, "ok", null)
         );
 
@@ -132,8 +132,7 @@ class RequestControllerTabsTest {
                 .build()
                 .perform(MockMvcRequestBuilders
                         .delete("/api/v1.0.0/requests/{requesterId}/{requestId}/helpers/{volunteerUserId}",
-                                "SID-REQ", "REQ-1", "SID-V2")
-                        .header("X-Actor-UserId", 1))
+                                "SID-REQ", "REQ-1", "SID-V2"))
                 .andExpect(MockMvcResultMatchers.status().isOk())
                 .andExpect(MockMvcResultMatchers.jsonPath("$.success").value(true));
     }

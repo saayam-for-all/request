@@ -20,7 +20,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -257,7 +256,6 @@ public class RequestController {
     }
 
     @GetMapping("/{requestId}/helpers")
-    @Operation(summary = "List helping volunteers for a request")
     public ResponseEntity<SaayamResponse<java.util.List<HelperVolunteerDTO>>> getHelpers(
             @PathVariable @NotNull String requesterId,
             @PathVariable @NotNull String requestId,
@@ -267,46 +265,27 @@ public class RequestController {
         return ResponseEntity.ok(volunteerService.getHelpers(requesterId, requestId, locale));
     }
 
-    @PostMapping(value = "/{requestId}/helpers", consumes = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "Add a helping volunteer (Lead only)")
+    @PostMapping("/{requestId}/helpers")
     public ResponseEntity<SaayamResponse<HelperVolunteerDTO>> addHelper(
             @PathVariable @NotNull String requesterId,
             @PathVariable @NotNull String requestId,
             @RequestBody @Valid HelperVolunteerDTO helperDTO,
-            @RequestHeader(value = "X-Actor-UserId", required = false) Integer actorUserId,
             HttpServletRequest request
     ) {
         Locale locale = localeResolver.resolveLocale(request);
-        SaayamResponse<HelperVolunteerDTO> response = volunteerService.addHelper(requesterId, requestId, helperDTO, actorUserId, locale);
+        SaayamResponse<HelperVolunteerDTO> response = volunteerService.addHelper(requesterId, requestId, helperDTO, locale);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
-    @PutMapping(value = "/{requestId}/helpers/{volunteerUserId}", consumes = MediaType.APPLICATION_JSON_VALUE)
-    @Operation(summary = "Modify a helping volunteer (Lead only)")
-    public ResponseEntity<SaayamResponse<HelperVolunteerDTO>> updateHelper(
-            @PathVariable @NotNull String requesterId,
-            @PathVariable @NotNull String requestId,
-            @PathVariable @NotNull String volunteerUserId,
-            @RequestBody @Valid HelperVolunteerDTO helperDTO,
-            @RequestHeader(value = "X-Actor-UserId", required = false) Integer actorUserId,
-            HttpServletRequest request
-    ) {
-        Locale locale = localeResolver.resolveLocale(request);
-        SaayamResponse<HelperVolunteerDTO> response = volunteerService.updateHelper(requesterId, requestId, volunteerUserId, helperDTO, actorUserId, locale);
-        return ResponseEntity.ok(response);
-    }
-
     @DeleteMapping("/{requestId}/helpers/{volunteerUserId}")
-    @Operation(summary = "Remove a helping volunteer (Lead only)")
     public ResponseEntity<SaayamResponse<Void>> removeHelper(
             @PathVariable @NotNull String requesterId,
             @PathVariable @NotNull String requestId,
             @PathVariable @NotNull String volunteerUserId,
-            @RequestHeader(value = "X-Actor-UserId", required = false) Integer actorUserId,
             HttpServletRequest request
     ) {
         Locale locale = localeResolver.resolveLocale(request);
-        SaayamResponse<Void> response = volunteerService.removeHelper(requesterId, requestId, volunteerUserId, actorUserId, locale);
+        SaayamResponse<Void> response = volunteerService.removeHelper(requesterId, requestId, volunteerUserId, locale);
         return ResponseEntity.ok(response);
     }
 

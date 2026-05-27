@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.sfa.request.constant.SaayamStatusCode;
 import org.sfa.request.dto.HelperVolunteerDTO;
 import org.sfa.request.exception.types.ConflictException;
-import org.sfa.request.exception.types.ForbiddenException;
 import org.sfa.request.exception.types.NotFoundException;
 import org.sfa.request.model.entity.Request;
 import org.sfa.request.model.entity.RequestVolunteer;
@@ -16,7 +15,6 @@ import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.stream.Collectors;
@@ -43,9 +41,8 @@ public class VolunteerServiceImpl implements VolunteerService {
 
     @Override
     @Transactional
-    public SaayamResponse<HelperVolunteerDTO> addHelper(String requesterId, String requestId, HelperVolunteerDTO dto, Integer actorUserId, Locale locale) {
+    public SaayamResponse<HelperVolunteerDTO> addHelper(String requesterId, String requestId, HelperVolunteerDTO dto, Locale locale) {
         Request request = findRequest(requesterId, requestId, locale);
-        enforceLeadOnly(actorUserId, request, locale);
         volunteerRepository.findByRequestAndVolunteerUserId(request, dto.getVolunteerUserId())
                 .ifPresent(v -> { throw new ConflictException(
                         messageSource.getMessage("error.helperExists", new Object[]{dto.getVolunteerUserId(), requestId}, locale)
@@ -62,29 +59,8 @@ public class VolunteerServiceImpl implements VolunteerService {
 
     @Override
     @Transactional
-    public SaayamResponse<HelperVolunteerDTO> updateHelper(String requesterId, String requestId, String volunteerUserId, HelperVolunteerDTO dto, Integer actorUserId, Locale locale) {
+    public SaayamResponse<Void> removeHelper(String requesterId, String requestId, String volunteerUserId, Locale locale) {
         Request request = findRequest(requesterId, requestId, locale);
-        enforceLeadOnly(actorUserId, request, locale);
-        RequestVolunteer rv = volunteerRepository.findByRequestAndVolunteerUserId(request, volunteerUserId)
-                .orElseThrow(() -> new NotFoundException(
-                        messageSource.getMessage("error.helperNotFound", new Object[]{volunteerUserId, requestId}, locale)
-                ));
-        // Update allowed fields
-        if (dto.getAddedByUserId() != null) {
-            rv.setAddedByUserId(dto.getAddedByUserId());
-        }
-        rv.setUpdatedAt(ZonedDateTime.now());
-        RequestVolunteer saved = volunteerRepository.save(rv);
-        HelperVolunteerDTO out = new HelperVolunteerDTO(saved.getVolunteerUserId(), saved.getAddedByUserId(), saved.getAddedAt());
-        String message = messageSource.getMessage("success.helperAdded", new Object[]{saved.getVolunteerUserId(), requestId}, locale);
-        return SaayamResponse.success(SaayamStatusCode.SUCCESS, message, out);
-    }
-
-    @Override
-    @Transactional
-    public SaayamResponse<Void> removeHelper(String requesterId, String requestId, String volunteerUserId, Integer actorUserId, Locale locale) {
-        Request request = findRequest(requesterId, requestId, locale);
-        enforceLeadOnly(actorUserId, request, locale);
         RequestVolunteer rv = volunteerRepository.findByRequestAndVolunteerUserId(request, volunteerUserId)
                 .orElseThrow(() -> new NotFoundException(
                         messageSource.getMessage("error.helperNotFound", new Object[]{volunteerUserId, requestId}, locale)
@@ -99,11 +75,5 @@ public class VolunteerServiceImpl implements VolunteerService {
                 .orElseThrow(() -> new NotFoundException(
                         messageSource.getMessage("error.requestNotFound", new Object[]{requestId, requesterId}, locale)
                 ));
-    }
-
-    private void enforceLeadOnly(Integer actorUserId, Request request, Locale locale) {
-        if (actorUserId == null || request.getLeadVolunteerUserId() == null || !actorUserId.equals(request.getLeadVolunteerUserId())) {
-            throw new ForbiddenException(messageSource.getMessage("error.forbidden", new Object[]{"Only lead volunteer can perform this action"}, locale));
-        }
     }
 }

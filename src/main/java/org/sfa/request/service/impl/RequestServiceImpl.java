@@ -5,6 +5,7 @@ import org.sfa.request.dto.GuestDetailsDTO;
 import org.sfa.request.dto.ReqAddInfoDTO;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.dto.RequestDTO;
+import org.sfa.request.dto.GetHelpRequestsDTO;
 import org.sfa.request.exception.types.ConflictException;
 import org.sfa.request.exception.types.EnumUnspecifiedException;
 import org.sfa.request.exception.types.InvalidRequestException;
@@ -514,6 +515,8 @@ public class RequestServiceImpl implements RequestService {
                 });
     }
 
+
+
     private void handleDateRangeField(String reqId, String fieldId,
                                       Map<String, String> dateMap,
                                       String userTimezone) {
@@ -835,5 +838,59 @@ public class RequestServiceImpl implements RequestService {
         request.setRequestDocumentLink(toJson(existing));
         requestRepository.save(request);
         return responseUrls;
+    }
+    @Override
+    @Transactional(readOnly = true)
+    public SaayamResponse<PagedResponse<GetHelpRequestsDTO>> getAllHelpRequests(
+            Pageable pageable,
+            Locale locale
+    ) {
+        Sort sort = pageable.getSort().isSorted()
+                ? pageable.getSort()
+                : Sort.by(Sort.Direction.DESC, "requestId");
+
+        Pageable sortedPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                sort
+        );
+
+        Page<GetHelpRequestsDTO> requests = requestRepository.findAllHelpRequests(
+                RequestStatusEnum.DELETED.getId(),
+                sortedPageable
+        );
+
+        PagedResponse<GetHelpRequestsDTO> pagedResponse = new PagedResponse<>(requests);
+
+        return SaayamResponse.success(
+                SaayamStatusCode.SUCCESS,
+                "Help requests retrieved successfully",
+                pagedResponse
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SaayamResponse<PagedResponse<GetHelpRequestsDTO>> getUserHelpRequests(
+            String userId,
+            Pageable pageable,
+            Locale locale
+    ) {
+
+        Page<GetHelpRequestsDTO> requests =
+                requestRepository.findHelpRequestsByUserId(
+                        userId,
+                        RequestStatusEnum.DELETED.getId(),
+                        pageable
+                );
+
+        PagedResponse<GetHelpRequestsDTO> pagedResponse =
+                new PagedResponse<>(requests);
+
+        return SaayamResponse.success(
+                SaayamStatusCode.SUCCESS,
+                "User help requests retrieved successfully",
+                pagedResponse
+        );
     }
 }

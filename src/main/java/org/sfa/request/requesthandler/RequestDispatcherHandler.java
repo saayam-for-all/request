@@ -14,6 +14,11 @@ import org.sfa.request.service.api.MetadataService;
 import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.response.SaayamResponse;
 import org.sfa.request.model.entity.Request;
+import org.sfa.request.dto.GetHelpRequestsDTO;
+import org.sfa.request.response.PagedResponse;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
 
 // Exceptions
 import org.sfa.request.exception.handler.LambdaExceptionHandler;
@@ -25,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 // Java
 import java.util.Locale;
 import java.util.Map;
+import java.util.HashMap;
 
 @Slf4j
 public class RequestDispatcherHandler extends BaseRequestHandler<APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
@@ -53,6 +59,10 @@ public class RequestDispatcherHandler extends BaseRequestHandler<APIGatewayProxy
             log.info("Incoming request: normalizedPath={}, method={}, rawEvent={}", path, method, event);
 
             Locale locale = getLocaleFromRequest(event);
+
+            if (path.equals("/api/requests/help-requests") && method.equalsIgnoreCase("GET")) {
+                return handleGetAllHelpRequests(event, locale);
+            }
 
             if (path.matches("/api/requests/.+") && method.equalsIgnoreCase("POST")) {
                 return handleCreateRequest(event, locale);
@@ -112,6 +122,25 @@ public class RequestDispatcherHandler extends BaseRequestHandler<APIGatewayProxy
             log.error("Unhandled exception: ", e);
             return LambdaExceptionHandler.handleException(e, lambdaContext, Locale.ENGLISH);
         }
+    }
+
+    private APIGatewayProxyResponseEvent handleGetAllHelpRequests(
+            APIGatewayProxyRequestEvent event,
+            Locale locale
+    ) {
+        if (event.getQueryStringParameters() == null) {
+            event.setQueryStringParameters(new HashMap<>());
+        }
+
+        int page = Integer.parseInt(event.getQueryStringParameters().getOrDefault("page", "0"));
+        int size = Integer.parseInt(event.getQueryStringParameters().getOrDefault("size", "10"));
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        SaayamResponse<PagedResponse<GetHelpRequestsDTO>> response =
+                requestService.getAllHelpRequests(pageable, locale);
+
+        return createResponse(201, response);
     }
 
     private APIGatewayProxyResponseEvent handleCreateRequest(APIGatewayProxyRequestEvent event, Locale locale)

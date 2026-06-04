@@ -4,6 +4,7 @@ import org.sfa.request.response.PagedResponse;
 import org.sfa.request.model.entity.Request;
 import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.response.SaayamResponse;
+import org.sfa.request.dto.GetHelpRequestsDTO;
 
 import org.springframework.data.domain.Pageable;
 
@@ -51,4 +52,8 @@ public interface RequestService {
     SaayamResponse<Request> cancelRequest(String requesterId, String requestId, Locale locale);
 
     SaayamResponse<Request> resumeRequest(String requesterId, String requestId, Locale locale);
+
+    SaayamResponse<PagedResponse<GetHelpRequestsDTO>> getAllHelpRequests(Pageable pageable, Locale locale);
+
+    SaayamResponse<PagedResponse<GetHelpRequestsDTO>> getUserHelpRequests(String userId, Pageable pageable, Locale locale);
 }

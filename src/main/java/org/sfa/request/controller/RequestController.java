@@ -12,6 +12,9 @@ import org.sfa.request.exception.types.InvalidRequestException;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.model.entity.Request;
 import org.sfa.request.dto.RequestDTO;
+import org.sfa.request.dto.GetHelpRequestsDTO;
+import org.sfa.request.dto.UserHelpRequestsDTO;
+import org.springframework.data.domain.PageRequest;
 import org.sfa.request.service.api.RequestService;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
@@ -176,6 +179,41 @@ public class RequestController {
     ) {
         Locale locale = localeResolver.resolveLocale(request);
         SaayamResponse<PagedResponse<Request>> response = requestService.getRequests(requesterId, pageable, locale);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/help-requests")
+    public ResponseEntity<SaayamResponse<PagedResponse<GetHelpRequestsDTO>>> getAllHelpRequests(
+            Pageable pageable,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+
+        SaayamResponse<PagedResponse<GetHelpRequestsDTO>> response =
+                requestService.getAllHelpRequests(pageable, locale);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/help-requests")
+    public ResponseEntity<SaayamResponse<PagedResponse<GetHelpRequestsDTO>>> getUserHelpRequests(
+            @RequestBody UserHelpRequestsDTO userHelpRequestsDTO,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+
+        Pageable pageable = PageRequest.of(
+                userHelpRequestsDTO.getPage() != null ? userHelpRequestsDTO.getPage() : 0,
+                userHelpRequestsDTO.getSize() != null ? userHelpRequestsDTO.getSize() : 10
+        );
+
+        SaayamResponse<PagedResponse<GetHelpRequestsDTO>> response =
+                requestService.getUserHelpRequests(
+                        userHelpRequestsDTO.getUserId(),
+                        pageable,
+                        locale
+                );
+
         return ResponseEntity.ok(response);
     }
 

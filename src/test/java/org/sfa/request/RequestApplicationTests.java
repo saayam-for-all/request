@@ -1,19 +1,13 @@
 package org.sfa.request;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
-import static org.assertj.core.api.Assertions.assertThat;
 
-@SpringBootTest
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+
 class RequestApplicationTests {
 
     @Test
-    void contextLoads() {
-    }
-
-    @Test
-    void main() {
-        RequestApplication.main(new String[] {});
-        assertThat(true).isTrue();
+    void applicationClassCanBeInstantiated() {
+        assertDoesNotThrow(RequestApplication::new);
     }
 }

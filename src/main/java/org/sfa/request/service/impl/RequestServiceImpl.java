@@ -2,6 +2,7 @@ package org.sfa.request.service.impl;
 
 import org.sfa.request.constant.SaayamStatusCode;
 import org.sfa.request.dto.GuestDetailsDTO;
+import org.sfa.request.dto.notification.NotificationEventType;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.exception.types.ConflictException;
@@ -13,6 +14,7 @@ import org.sfa.request.model.enums.RequestStatusEnum;
 import org.sfa.request.repository.*;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
+import org.sfa.request.service.api.NotificationEventService;
 import org.sfa.request.service.api.RequestService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +75,7 @@ public class RequestServiceImpl implements RequestService {
     private final RequestTypeRepository requestTypeRepository;
     private final HelpCategoryRepository helpCategoryRepository;
     private final RequestForRepository requestForRepository;
+    private final NotificationEventService notificationEventService;
     private final MessageSource messageSource;
 
     @Override
@@ -117,6 +120,7 @@ public class RequestServiceImpl implements RequestService {
         }
 
         logger.info("Created request with ID: {}", savedRequest.getRequestId());
+        notificationEventService.enqueueRequestEvent(NotificationEventType.REQUEST_CREATED, savedRequest, locale);
         String message = messageSource.getMessage("success.requestCreated", new Object[]{savedRequest.getRequestId()}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_CREATED, message, savedRequest);
     }
@@ -160,6 +164,7 @@ public class RequestServiceImpl implements RequestService {
         Request updatedRequest = requestRepository.save(request);
 
         logger.info("Updated request with ID: {}", requestId);
+        notificationEventService.enqueueRequestEvent(NotificationEventType.REQUEST_UPDATED, updatedRequest, locale);
         String message = messageSource.getMessage("success.requestUpdated", new Object[]{requestId}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_UPDATED, message, updatedRequest);
     }
@@ -173,9 +178,10 @@ public class RequestServiceImpl implements RequestService {
             RequestStatus deletedStatus = getRequestStatus(RequestStatusEnum.DELETED.getId(), locale);
             request.setRequestStatus(deletedStatus);
             request.setLastUpdatedAt(ZonedDateTime.now());
-            requestRepository.save(request);
+            Request deletedRequest = requestRepository.save(request);
 
             logger.info("Deleted request with ID: {}", requestId);
+            notificationEventService.enqueueRequestEvent(NotificationEventType.REQUEST_DELETED, deletedRequest, locale);
             String message = messageSource.getMessage("success.requestDeleted", new Object[]{requestId}, locale);
             return SaayamResponse.success(SaayamStatusCode.REQUEST_DELETED, message, null);
         } else {
@@ -201,6 +207,7 @@ public class RequestServiceImpl implements RequestService {
         Request cancelledRequest = requestRepository.save(request);
 
         logger.info("Cancelled request with ID: {}", requestId);
+        notificationEventService.enqueueRequestEvent(NotificationEventType.REQUEST_CANCELLED, cancelledRequest, locale);
         String message = messageSource.getMessage("success.requestCancelled", new Object[]{requestId}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_CANCELLED, message, cancelledRequest);
     }
@@ -222,6 +229,7 @@ public class RequestServiceImpl implements RequestService {
         Request resumedRequest = requestRepository.save(request);
 
         logger.info("Resumed request with ID: {}", requestId);
+        notificationEventService.enqueueRequestEvent(NotificationEventType.REQUEST_RESUMED, resumedRequest, locale);
         String message = messageSource.getMessage("success.requestResumed", new Object[]{requestId}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_RESUMED, message, resumedRequest);
     }

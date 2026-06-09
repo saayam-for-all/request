@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 
 import java.io.Serializable;
 import java.time.ZonedDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 
 /**
  * ClassName: Request
@@ -28,6 +30,8 @@ import java.time.ZonedDateTime;
         "requestFor",
         "isLeadVolunteer"
 })
+
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Entity
 @Table(
         name = "request",
@@ -109,7 +113,8 @@ public class Request implements Serializable {
     @Column(name = "audio_req_desc", columnDefinition = "VARCHAR(255)")
     private String audioRequestDescription;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     @JoinColumn(
             name = "req_islead_id",
             nullable = false,

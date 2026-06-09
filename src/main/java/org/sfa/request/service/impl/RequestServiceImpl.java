@@ -5,6 +5,7 @@ import org.sfa.request.dto.GuestDetailsDTO;
 import org.sfa.request.dto.ReqAddInfoDTO;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.dto.RequestDTO;
+import org.sfa.request.dto.RequestUpdateDTO;
 import org.sfa.request.exception.types.ConflictException;
 import org.sfa.request.exception.types.EnumUnspecifiedException;
 import org.sfa.request.exception.types.InvalidRequestException;
@@ -196,23 +197,29 @@ public class RequestServiceImpl implements RequestService {
 
     @Override
     @Transactional
-    public SaayamResponse<Request> updateRequest(String requesterId, String requestId, RequestDTO requestDTO, Locale locale) {
-        Request request = findActiveRequest(requesterId, requestId, locale);
+    public SaayamResponse<Request> updateRequest(RequestUpdateDTO requestUpdateDTO, Locale locale) {
 
-        if (request.getRequestStatus().getRequestStatusId() == RequestStatusEnum.CANCELLED.getId()) {
-            throw new InvalidRequestException(
-                    messageSource.getMessage("error.updateCancelledRequest", new Object[]{requestId}, locale)
-            );
+            String requesterId = requestUpdateDTO.getRequesterId();
+            String requestId = requestUpdateDTO.getRequestId();
+            Request request = findActiveRequest(requesterId, requestId, locale);
+
+            if (request.getRequestStatus().getRequestStatusId() == RequestStatusEnum.CANCELLED.getId()) {
+                throw new InvalidRequestException(
+                        messageSource.getMessage("error.updateCancelledRequest", new Object[]{requestId}, locale)
+                );
+            }
+
+            updateRequestFields(request, requestUpdateDTO, locale);
+            updateGuestDetails(requestId, requestUpdateDTO.getGuestDetails());
+            replaceAdditionalInfo(requestId, requestUpdateDTO.getAdditionalFields(), requesterId);
+
+            request.setLastUpdatedAt(ZonedDateTime.now());
+            Request updatedRequest = requestRepository.save(request);
+
+            logger.info("Updated request with ID: {}", requestId);
+            String message = messageSource.getMessage("success.requestUpdated", new Object[]{requestId}, locale);
+            return SaayamResponse.success(SaayamStatusCode.REQUEST_UPDATED, message, updatedRequest);
         }
-
-        updateRequestFields(request, requestDTO, locale);
-        request.setLastUpdatedAt(ZonedDateTime.now());
-        Request updatedRequest = requestRepository.save(request);
-
-        logger.info("Updated request with ID: {}", requestId);
-        String message = messageSource.getMessage("success.requestUpdated", new Object[]{requestId}, locale);
-        return SaayamResponse.success(SaayamStatusCode.REQUEST_UPDATED, message, updatedRequest);
-    }
 
     @Override
     @Transactional
@@ -380,33 +387,72 @@ public class RequestServiceImpl implements RequestService {
                 .build();
     }
 
-    private void updateRequestFields(Request request, RequestDTO requestDTO, Locale locale) {
-        Optional.ofNullable(requestDTO.getRequestPriority())
-                .ifPresent(priority -> request.setRequestPriority(getRequestPriority(priority.getRequestPriorityId(), locale)));
+        private void updateRequestFields(Request request, RequestUpdateDTO requestUpdateDTO, Locale locale) {
+            Optional.ofNullable(requestUpdateDTO.getRequestStatus())
+                    .ifPresent(status -> request.setRequestStatus(getRequestStatus(status.getRequestStatusId(), locale)));
 
-        Optional.ofNullable(requestDTO.getRequestType())
-                .ifPresent(type -> request.setRequestType(getRequestType(type.getRequestTypeId(), locale)));
+            Optional.ofNullable(requestUpdateDTO.getRequestPriority())
+                    .ifPresent(priority -> request.setRequestPriority(getRequestPriority(priority.getRequestPriorityId(), locale)));
 
-        Optional.ofNullable(requestDTO.getHelpCategory())
-                .ifPresent(cat -> request.setHelpCategory(getHelpCategory(cat.getCatId(), locale)));
+            Optional.ofNullable(requestUpdateDTO.getRequestType())
+                    .ifPresent(type -> request.setRequestType(getRequestType(type.getRequestTypeId(), locale)));
 
-        Optional.ofNullable(requestDTO.getRequestFor())
-                .ifPresent(requestFor -> request.setRequestFor(getRequestFor(requestFor.getRequestForId(), locale)));
+            Optional.ofNullable(requestUpdateDTO.getHelpCategory())
+                    .ifPresent(cat -> request.setHelpCategory(getHelpCategory(cat.getCatId(), locale)));
 
-        Optional.ofNullable(requestDTO.getRequestLocation()).ifPresent(request::setRequestLocation);
-        Optional.ofNullable(requestDTO.getRequestSubject()).ifPresent(request::setRequestSubject);
+            Optional.ofNullable(requestUpdateDTO.getRequestFor())
+                    .ifPresent(requestFor -> request.setRequestFor(getRequestFor(requestFor.getRequestForId(), locale)));
 
-        Optional.ofNullable(requestDTO.getRequestDescription()).ifPresent(request::setRequestDescription);
-        Optional.ofNullable(requestDTO.getIsCalamity()).ifPresent(request::setIsCalamity);
-        Optional.ofNullable(requestDTO.getRequestDocumentLink()).ifPresent(request::setRequestDocumentLink);
+            Optional.ofNullable(requestUpdateDTO.getRequestLocation()).ifPresent(request::setRequestLocation);
+            Optional.ofNullable(requestUpdateDTO.getRequestSubject()).ifPresent(request::setRequestSubject);
+            Optional.ofNullable(requestUpdateDTO.getRequestDescription()).ifPresent(request::setRequestDescription);
+            Optional.ofNullable(requestUpdateDTO.getAudioRequestDescription()).ifPresent(request::setAudioRequestDescription);
+            Optional.ofNullable(requestUpdateDTO.getIsCalamity()).ifPresent(request::setIsCalamity);
+            Optional.ofNullable(requestUpdateDTO.getRequestDocumentLink()).ifPresent(request::setRequestDocumentLink);
 
-        Optional.ofNullable(requestDTO.getAudioRequestDescription()).ifPresent(request::setAudioRequestDescription);
+            Optional.ofNullable(requestUpdateDTO.getIsLeadVolunteer())
+                    .ifPresent(volId -> request.setIsLeadVolunteer(getIsLeadVolunteer(volId, locale)));
 
-        Optional.ofNullable(requestDTO.getIsLeadVolunteer())
-                .ifPresent(volId -> request.setIsLeadVolunteer(getIsLeadVolunteer(volId, locale)));
+            Optional.ofNullable(requestUpdateDTO.getServicedAt()).ifPresent(request::setServicedAt);
+        }
 
-        Optional.ofNullable(requestDTO.getServicedAt()).ifPresent(request::setServicedAt);
-    }
+        private void updateGuestDetails(String requestId, GuestDetailsDTO guestDetailsDTO) {
+            if (guestDetailsDTO == null) {
+                return;
+            }
+
+            RequestGuestDetails guestDetails = requestGuestDetailsRepository.findById(requestId)
+                    .orElse(
+                            RequestGuestDetails.builder()
+                                    .requestId(requestId)
+                                    .build()
+                    );
+
+            guestDetails.setReqFname(guestDetailsDTO.getReqFname());
+            guestDetails.setReqLname(guestDetailsDTO.getReqLname());
+            guestDetails.setReqEmail(guestDetailsDTO.getReqEmail());
+            guestDetails.setReqPhone(guestDetailsDTO.getReqPhone());
+            guestDetails.setReqAge(guestDetailsDTO.getReqAge());
+            guestDetails.setReqGender(guestDetailsDTO.getReqGender());
+            guestDetails.setReqPrefLang(guestDetailsDTO.getReqPrefLang());
+
+            requestGuestDetailsRepository.save(guestDetails);
+        }
+        private void replaceAdditionalInfo(String requestId, Map<String, Object> additionalFields, String requesterId) {
+            if (additionalFields == null) {
+                return;
+            }
+
+            reqAddInfoRepository.deleteByReqId(requestId);
+
+            if (additionalFields.isEmpty()) {
+                return;
+            }
+
+            String userTimezone = getUserTimezone(requesterId);
+            insertAdditionalInfo(requestId, additionalFields, userTimezone);
+        }
+
 
     private void insertAdditionalInfo(String reqId, Map<String, Object> additionalFields,
                                       String userTimezone) {
@@ -428,17 +474,9 @@ public class RequestServiceImpl implements RequestService {
                 }
 
             } else if (value instanceof Map) {
-                Map<String, String> nestedMap = (Map<String, String>) value;
-
-                // check if it's a date/time field or currency/other nested field
-                boolean isDateField = nestedMap.keySet().stream()
-                        .anyMatch(k -> k.endsWith("_date") || k.endsWith("_time"));
-
-                if (isDateField) {
-                    handleDateRangeField(reqId, fieldId, nestedMap, userTimezone);
-                } else {
-                    handleNestedValueField(reqId, fieldId, nestedMap);
-                }
+                // date/time field — nested object
+                Map<String, String> dateMap = (Map<String, String>) value;
+                handleDateRangeField(reqId, fieldId, dateMap, userTimezone);
 
             } else {
                 // string/int/float/currency — one row, itemId is NULL
@@ -507,77 +545,36 @@ public class RequestServiceImpl implements RequestService {
             userZone = ZoneOffset.UTC;
         }
 
-        // group date and time by slot
-        Map<String, String> dateBySlot = new java.util.HashMap<>();
-        Map<String, String> timeBySlot = new java.util.HashMap<>();
-
         for (Map.Entry<String, String> e : dateMap.entrySet()) {
-            String key = e.getKey();   // e.g. "6.1.B.1_date" or "6.1.B.1_time"
-            String val = e.getValue();
+            String slot = e.getKey();    // e.g. "6.1.B.1"
+            String value = e.getValue(); // e.g. "2026-03-24T11:37:00"
 
-            if (key.endsWith("_date")) {
-                String slot = key.replace("_date", ""); // "6.1.B.1"
-                dateBySlot.put(slot, val);
-            } else if (key.endsWith("_time")) {
-                String slot = key.replace("_time", ""); // "6.1.B.1"
-                timeBySlot.put(slot, val);
-            }
-        }
-
-        // combine date + time per slot and convert to UTC
-        for (String slot : dateBySlot.keySet()) {
-            String date = dateBySlot.get(slot);  // "2026-04-10"
-            String time = timeBySlot.getOrDefault(slot, "00:00"); // "10:00"
-            String combined = date + "T" + time + ":00"; // "2026-04-10T10:00:00"
+            if (value == null || value.isBlank()) continue;
 
             try {
-                ZoneId finalUserZone = userZone;
-                String utcValue = LocalDateTime.parse(combined)
-                        .atZone(finalUserZone)
+                String utcValue = LocalDateTime.parse(value)
+                        .atZone(userZone)
                         .withZoneSameInstant(ZoneOffset.UTC)
                         .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
-                logger.info("Date field — slot: {}, combined: {}, timezone: {}, UTC: {}",
-                        slot, combined, userTimezone, utcValue);
-
-                // standalone field: slot == fieldId → item_id = null
-                // list sub-item: slot != fieldId → item_id = slot
-                boolean isStandalone = slot.equals(fieldId);
+                logger.info("Date field — slot: {}, local: {}, timezone: {}, UTC: {}",
+                        slot, value, userTimezone, utcValue);
 
                 reqAddInfoRepository.save(ReqAddInfo.builder()
                         .reqId(reqId)
                         .fieldId(fieldId)
-                        .itemId(isStandalone ? null : slot)
+                        .itemId(slot)
                         .fieldValue(utcValue)
                         .build());
 
             } catch (Exception ex) {
-                logger.error("Failed to parse date for slot {}: {}", slot, combined);
+                logger.error("Failed to parse date for slot {}: {}", slot, value);
                 throw new InvalidRequestException(
                         "Invalid date format for field " + fieldId +
-                                " slot " + slot + ". Expected date: 'YYYY-MM-DD' and time: 'HH:mm'"
+                                " slot " + slot + ": '" + value +
+                                "'. Expected format: '2026-03-24T11:37:00'"
                 );
             }
-        }
-    }
-
-    private void handleNestedValueField(String reqId, String fieldId,
-                                        Map<String, String> nestedMap) {
-        for (Map.Entry<String, String> e : nestedMap.entrySet()) {
-            String itemId = e.getKey();       // e.g. "4.3.3.C.1"
-            String fieldValue = e.getValue(); // e.g. "100"
-
-            if (fieldValue == null || fieldValue.isBlank()) continue;
-
-            logger.info("Nested value field — fieldId: {}, itemId: {}, value: {}",
-                    fieldId, itemId, fieldValue);
-
-            reqAddInfoRepository.save(ReqAddInfo.builder()
-                    .reqId(reqId)
-                    .fieldId(fieldId)
-                    .itemId(itemId)
-                    .fieldValue(fieldValue)
-                    .build());
         }
     }
 }

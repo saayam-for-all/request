@@ -4,10 +4,13 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
 
 @Data
 @Getter
 @Setter
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Entity
 @Table(name = "request_isleadvol", schema = "virginia_dev_saayam_rdbms")
 public class RequestIsLeadVolunteer {

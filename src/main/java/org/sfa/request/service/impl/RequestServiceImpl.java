@@ -2,6 +2,7 @@ package org.sfa.request.service.impl;
 
 import org.sfa.request.constant.SaayamStatusCode;
 import org.sfa.request.response.PagedResponse;
+import org.sfa.request.dto.HelpCategoryDto;
 import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.exception.types.ConflictException;
 import org.sfa.request.exception.types.EnumUnspecifiedException;
@@ -63,6 +64,7 @@ import java.util.Optional;
 public class RequestServiceImpl implements RequestService {
 
     private static final Logger logger = LoggerFactory.getLogger(RequestServiceImpl.class);
+    private static final String GENERAL_HELP_CATEGORY_ID = "0.0.0.0.0";
 
     private final RequestRepository requestRepository;
     private final RequestStatusRepository requestStatusRepository;
@@ -77,6 +79,12 @@ public class RequestServiceImpl implements RequestService {
     @Override
     @Transactional
     public SaayamResponse<Request> createRequest(String requesterId, RequestDTO requestDTO, Locale locale) {
+        if (isGeneralRequest(requestDTO)) {
+            HelpCategoryDto helpCategory = new HelpCategoryDto();
+            helpCategory.setCatId(GENERAL_HELP_CATEGORY_ID);
+            requestDTO.setHelpCategory(helpCategory);
+        }
+
         validateEnumIds(requestDTO, locale);
 
         RequestPriority requestPriority = getRequestPriority(requestDTO.getRequestPriority().getRequestPriorityId(), locale);
@@ -102,6 +110,12 @@ public class RequestServiceImpl implements RequestService {
        // logger.info("Created request with ID: {}", savedRequest.get);
       String message = messageSource.getMessage("success.requestCreated", new Object[]{savedRequest.getRequestId()}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_CREATED, message, savedRequest);
+    }
+
+    private boolean isGeneralRequest(RequestDTO requestDTO) {
+        return requestDTO.getHelpCategory() == null
+                || requestDTO.getHelpCategory().getCatId() == null
+                || requestDTO.getHelpCategory().getCatId().isBlank();
     }
 
     @Override

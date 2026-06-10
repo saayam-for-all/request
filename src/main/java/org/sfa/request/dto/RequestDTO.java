@@ -45,7 +45,6 @@ public class RequestDTO {
     @NotNull(message = "Request type cannot be null")
     private RequestTypeDTO requestType;
     
-    @NotNull(message = "Request category cannot be null")
     private HelpCategoryDto helpCategory;
 	/*
 	 * @NotNull(message = "Request category cannot be null") private

@@ -4,7 +4,6 @@ import lombok.Getter;
 import org.sfa.request.RequestApplication;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
 /**
  * ClassName: SpringContext
@@ -21,6 +20,7 @@ public class SpringContext {
 
     public static synchronized ApplicationContext getContext() {
         if (context == null) {
+            DatabaseParameterLoader.configureSpringDatasourceIfPresent();
             context = SpringApplication.run(RequestApplication.class);
         }
         return context;

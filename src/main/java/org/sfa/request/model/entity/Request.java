@@ -118,6 +118,12 @@ public class Request implements Serializable {
     )
     private RequestIsLeadVolunteer isLeadVolunteer;
 
+    @Column(name = "lead_volunteer_user_id", columnDefinition = "VARCHAR(255)")
+    private String leadVolunteerUserId;
+
+    @Column(name = "helping_volunteer_user_id", columnDefinition = "VARCHAR(255)")
+    private String helpingVolunteerUserId;
+
     @Column(name = "submission_date", columnDefinition = "TIMESTAMP")
     private ZonedDateTime submittedAt;
 

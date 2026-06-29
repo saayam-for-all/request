@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class RequestTypeDTO {
-    @NotNull(message = "Request type ID cannot be null")
     private Integer requestTypeId;
 }
 

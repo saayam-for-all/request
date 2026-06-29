@@ -10,6 +10,7 @@ import org.sfa.request.exception.types.InvalidRequestException;
 import org.sfa.request.exception.types.NotFoundException;
 import org.sfa.request.model.entity.*;
 import org.sfa.request.model.enums.RequestStatusEnum;
+import org.sfa.request.model.enums.RequestTypeEnum;
 import org.sfa.request.repository.*;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
@@ -81,7 +82,10 @@ public class RequestServiceImpl implements RequestService {
         validateEnumIds(requestDTO, locale);
 
         RequestPriority requestPriority = getRequestPriority(requestDTO.getRequestPriority().getRequestPriorityId(), locale);
-        RequestType requestType = getRequestType(requestDTO.getRequestType().getRequestTypeId(), locale);
+        int requestTypeId = (requestDTO.getRequestType() != null && requestDTO.getRequestType().getRequestTypeId() != null)
+                ? requestDTO.getRequestType().getRequestTypeId()
+                : RequestTypeEnum.REMOTE.getId();
+        RequestType requestType = getRequestType(requestTypeId, locale);
         HelpCategory helpCategory = getHelpCategory(requestDTO.getHelpCategory().getCatId(), locale);
         RequestFor requestFor = getRequestFor(requestDTO.getRequestFor().getRequestForId(), locale);
         RequestStatus requestStatus = getRequestStatus(RequestStatusEnum.CREATED.getId(), locale);
@@ -228,8 +232,10 @@ public class RequestServiceImpl implements RequestService {
 
     private void validateEnumIds(RequestDTO requestDTO, Locale locale) {
         validateEnumId(requestDTO.getRequestPriority().getRequestPriorityId(), "RequestPriority", locale);
-        validateEnumId(requestDTO.getRequestType().getRequestTypeId(), "RequestType", locale);
-        validateEnumId(requestDTO.getHelpCategory().getCatId(), "HelpCategory", locale); // ✅
+        if (requestDTO.getRequestType() != null) {
+            validateEnumId(requestDTO.getRequestType().getRequestTypeId(), "RequestType", locale);
+        }
+        validateEnumId(requestDTO.getHelpCategory().getCatId(), "HelpCategory", locale);
         validateEnumId(requestDTO.getRequestFor().getRequestForId(), "RequestFor", locale);
     }
 
@@ -323,10 +329,11 @@ public class RequestServiceImpl implements RequestService {
                 .audioRequestDescription(requestDTO.getAudioRequestDescription())
                 .isCalamity(requestDTO.getIsCalamity())
                 .requestDocumentLink(requestDTO.getRequestDocumentLink())
+                .leadVolunteerUserId(requestDTO.getLeadVolunteerUserId())
+                .helpingVolunteerUserId(requestDTO.getHelpingVolunteerUserId())
                 .submittedAt(now)
                 .servicedAt(requestDTO.getServicedAt())
                 .lastUpdatedAt(now)
-
                 .build();
     }
 
@@ -354,6 +361,9 @@ public class RequestServiceImpl implements RequestService {
 
         Optional.ofNullable(requestDTO.getIsLeadVolunteer())
                 .ifPresent(volId -> request.setIsLeadVolunteer(getIsLeadVolunteer(volId, locale)));
+
+        Optional.ofNullable(requestDTO.getLeadVolunteerUserId()).ifPresent(request::setLeadVolunteerUserId);
+        Optional.ofNullable(requestDTO.getHelpingVolunteerUserId()).ifPresent(request::setHelpingVolunteerUserId);
 
         Optional.ofNullable(requestDTO.getServicedAt()).ifPresent(request::setServicedAt);
     }

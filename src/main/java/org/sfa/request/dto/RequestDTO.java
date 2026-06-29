@@ -44,6 +44,10 @@ public class RequestDTO {
     // maps to req_islead_id
     private Integer isLeadVolunteer;
 
+    private String leadVolunteerUserId;
+
+    private String helpingVolunteerUserId;
+
     @Valid
     private GuestDetailsDTO guestDetails;
 
@@ -53,7 +57,6 @@ public class RequestDTO {
     @NotNull(message = "Request priority cannot be null")
     private RequestPriorityDTO requestPriority;
 
-    @NotNull(message = "Request type cannot be null")
     private RequestTypeDTO requestType;
 
     @NotNull(message = "Help category cannot be null")

@@ -172,6 +172,20 @@ public class RequestController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/my")
+    public ResponseEntity<SaayamResponse<PagedResponse<Request>>> getMyRequests(
+        @RequestParam @NotNull String requesterId,
+        Pageable pageable,
+        HttpServletRequest request
+    ) {
+    Locale locale = localeResolver.resolveLocale(request);
+
+    SaayamResponse<PagedResponse<Request>> response =
+            requestService.getRequests(requesterId, pageable, locale);
+
+    return ResponseEntity.ok(response); 
+   }
+
     @PutMapping("/{requestId}")
     public ResponseEntity<SaayamResponse<Request>> updateRequest(
             @PathVariable @NotNull String requestId,

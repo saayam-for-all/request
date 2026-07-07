@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: saayam-demo-ingress
+  namespace: kube-system
+  annotations:
+    alb.ingress.kubernetes.io/load-balancer-name: <your-load-balancer-name>
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/subnets: <your-subnet-id-1>,<your-subnet-id-2>,<your-subnet-id-3>
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: saayam-demo-svc
+                port:
+                  number: 80

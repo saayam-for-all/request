@@ -2,6 +2,7 @@ package org.sfa.request.service.impl;
 
 import org.sfa.request.constant.SaayamStatusCode;
 import org.sfa.request.dto.GuestDetailsDTO;
+import org.sfa.request.dto.ReqAddInfoDTO;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.exception.types.ConflictException;
@@ -24,9 +25,17 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.OffsetDateTime;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * ClassName: RequestServiceImpl
@@ -72,6 +81,9 @@ public class RequestServiceImpl implements RequestService {
     private final RequestPriorityRepository requestPriorityRepository;
     private final RequestTypeRepository requestTypeRepository;
     private final HelpCategoryRepository helpCategoryRepository;
+    private final ReqAddInfoMetadataRepository reqAddInfoMetadataRepository;
+    private final ListItemMetadataRepository listItemMetadataRepository;
+    private final ReqAddInfoRepository reqAddInfoRepository;
     private final RequestForRepository requestForRepository;
     private final MessageSource messageSource;
 
@@ -86,6 +98,10 @@ public class RequestServiceImpl implements RequestService {
         RequestFor requestFor = getRequestFor(requestDTO.getRequestFor().getRequestForId(), locale);
         RequestStatus requestStatus = getRequestStatus(RequestStatusEnum.CREATED.getId(), locale);
         RequestIsLeadVolunteer isLeadVolunteer = getIsLeadVolunteer(requestDTO.getIsLeadVolunteer(), locale);
+        List<ReqAddInfo> additionalInfo = validateAdditionalInfo(
+                requestDTO.getAdditionalFields(),
+                helpCategory.getCatId()
+        );
 
         Request request = buildRequest(
                 requesterId,
@@ -98,6 +114,8 @@ public class RequestServiceImpl implements RequestService {
                 isLeadVolunteer
         );
         Request savedRequest = requestRepository.save(request);
+
+        saveAdditionalInfo(savedRequest.getRequestId(), additionalInfo);
 
         if (requestFor.getRequestForId() == 1 && requestDTO.getGuestDetails() != null) {
             GuestDetailsDTO guestDTO = requestDTO.getGuestDetails();
@@ -356,5 +374,157 @@ public class RequestServiceImpl implements RequestService {
                 .ifPresent(volId -> request.setIsLeadVolunteer(getIsLeadVolunteer(volId, locale)));
 
         Optional.ofNullable(requestDTO.getServicedAt()).ifPresent(request::setServicedAt);
+    }
+
+    private List<ReqAddInfo> validateAdditionalInfo(List<ReqAddInfoDTO> submittedFields, String categoryId) {
+        if (submittedFields == null || submittedFields.isEmpty()) {
+            return List.of();
+        }
+
+        Set<String> submittedFieldIds = new HashSet<>();
+        List<ReqAddInfo> validatedRows = new ArrayList<>();
+
+        for (ReqAddInfoDTO submittedField : submittedFields) {
+            if (submittedField == null || submittedField.getFieldId() == null
+                    || submittedField.getFieldId().isBlank()) {
+                throw new InvalidRequestException("Additional information field ID is required");
+            }
+
+            String fieldId = submittedField.getFieldId().trim();
+            if (!submittedFieldIds.add(fieldId)) {
+                throw new InvalidRequestException("Duplicate additional information field: " + fieldId);
+            }
+
+            ReqAddInfoMetadata metadata = reqAddInfoMetadataRepository.findById(fieldId)
+                    .orElseThrow(() -> new InvalidRequestException(
+                            "Unknown additional information field: " + fieldId
+                    ));
+
+            if (!categoryId.equals(metadata.getCatId())) {
+                throw new InvalidRequestException(
+                        "Additional information field " + fieldId + " does not belong to category " + categoryId
+                );
+            }
+
+            if (!"active".equalsIgnoreCase(metadata.getStatus())) {
+                throw new InvalidRequestException("Additional information field is inactive: " + fieldId);
+            }
+
+            validateFieldValue(metadata, submittedField, validatedRows);
+        }
+
+        return validatedRows;
+    }
+
+    private void validateFieldValue(ReqAddInfoMetadata metadata, ReqAddInfoDTO submittedField,
+                                    List<ReqAddInfo> validatedRows) {
+        String fieldId = metadata.getFieldId();
+        String fieldType = metadata.getFieldType() == null
+                ? ""
+                : metadata.getFieldType().trim().toLowerCase(Locale.ROOT);
+
+        if ("list".equals(fieldType)) {
+            validateListField(fieldId, submittedField, validatedRows);
+            return;
+        }
+
+        if (submittedField.getSelectedItems() != null) {
+            throw new InvalidRequestException("Field " + fieldId + " does not accept list-item selections");
+        }
+
+        String fieldValue = submittedField.getFieldValue();
+        if (fieldValue == null || fieldValue.isBlank()) {
+            throw new InvalidRequestException("A value is required for field " + fieldId);
+        }
+
+        String normalizedValue = fieldValue.trim();
+        validateScalarValue(fieldId, fieldType, normalizedValue);
+        validatedRows.add(ReqAddInfo.builder()
+                .fieldId(fieldId)
+                .fieldValue(normalizedValue)
+                .build());
+    }
+
+    private void validateListField(String fieldId, ReqAddInfoDTO submittedField,
+                                   List<ReqAddInfo> validatedRows) {
+        if (submittedField.getFieldValue() != null) {
+            throw new InvalidRequestException("List field " + fieldId + " does not accept a scalar value");
+        }
+
+        List<String> selectedItems = submittedField.getSelectedItems();
+        if (selectedItems == null || selectedItems.isEmpty()) {
+            throw new InvalidRequestException("At least one list item is required for field " + fieldId);
+        }
+
+        Set<String> allowedItemIds = new HashSet<>();
+        for (ListItemMetadata item : listItemMetadataRepository.findByFieldId(fieldId)) {
+            allowedItemIds.add(item.getItemId());
+        }
+
+        Set<String> selectedItemIds = new HashSet<>();
+        for (String selectedItem : selectedItems) {
+            if (selectedItem == null || selectedItem.isBlank()) {
+                throw new InvalidRequestException("List item ID is required for field " + fieldId);
+            }
+
+            String itemId = selectedItem.trim();
+            if (!selectedItemIds.add(itemId)) {
+                throw new InvalidRequestException("Duplicate list item " + itemId + " for field " + fieldId);
+            }
+            if (!allowedItemIds.contains(itemId)) {
+                throw new InvalidRequestException("Invalid list item " + itemId + " for field " + fieldId);
+            }
+
+            validatedRows.add(ReqAddInfo.builder()
+                    .fieldId(fieldId)
+                    .itemId(itemId)
+                    .build());
+        }
+    }
+
+    private void validateScalarValue(String fieldId, String fieldType, String fieldValue) {
+        try {
+            switch (fieldType) {
+                case "textbox" -> {
+                    // Any non-blank text is valid.
+                }
+                case "integer" -> Integer.parseInt(fieldValue);
+                case "checkbox" -> {
+                    if (!"true".equalsIgnoreCase(fieldValue) && !"false".equalsIgnoreCase(fieldValue)) {
+                        throw new IllegalArgumentException();
+                    }
+                }
+                case "time" -> LocalTime.parse(fieldValue);
+                case "date&time" -> validateDateTime(fieldValue);
+                case "currency" -> new BigDecimal(fieldValue);
+                default -> throw new InvalidRequestException(
+                        "Unsupported metadata field type " + fieldType + " for field " + fieldId
+                );
+            }
+        } catch (InvalidRequestException exception) {
+            throw exception;
+        } catch (RuntimeException exception) {
+            throw new InvalidRequestException(
+                    "Invalid " + fieldType + " value for field " + fieldId,
+                    exception
+            );
+        }
+    }
+
+    private void validateDateTime(String fieldValue) {
+        try {
+            OffsetDateTime.parse(fieldValue);
+        } catch (RuntimeException offsetDateTimeException) {
+            LocalDateTime.parse(fieldValue);
+        }
+    }
+
+    private void saveAdditionalInfo(String requestId, List<ReqAddInfo> additionalInfo) {
+        if (additionalInfo.isEmpty()) {
+            return;
+        }
+
+        additionalInfo.forEach(info -> info.setRequestId(requestId));
+        reqAddInfoRepository.saveAll(additionalInfo);
     }
 }

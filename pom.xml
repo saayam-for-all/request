@@ -109,6 +109,11 @@
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
+        <!-- WebClient -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
 <!--        <dependency>-->
 <!--            <groupId>software.amazon.awssdk</groupId>-->
 <!--            <artifactId>sqs</artifactId>-->

@@ -2,6 +2,7 @@ package org.sfa.request.service.impl;
 
 import org.sfa.request.constant.SaayamStatusCode;
 import org.sfa.request.dto.GuestDetailsDTO;
+import org.sfa.request.model.enums.RequestForEnum;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.exception.types.ConflictException;
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.sfa.request.client.VolunteerServiceClient;
 
 import java.time.ZonedDateTime;
 import java.util.Locale;
@@ -74,6 +76,7 @@ public class RequestServiceImpl implements RequestService {
     private final HelpCategoryRepository helpCategoryRepository;
     private final RequestForRepository requestForRepository;
     private final MessageSource messageSource;
+    private final VolunteerServiceClient volunteerServiceClient;
 
     @Override
     @Transactional
@@ -87,6 +90,14 @@ public class RequestServiceImpl implements RequestService {
         RequestStatus requestStatus = getRequestStatus(RequestStatusEnum.CREATED.getId(), locale);
         RequestIsLeadVolunteer isLeadVolunteer = getIsLeadVolunteer(requestDTO.getIsLeadVolunteer(), locale);
 
+        boolean isOtherRequest = requestFor.getRequestForId() == RequestForEnum.OTHER.getId();
+        GuestDetailsDTO guestDTO = requestDTO.getGuestDetails();
+
+        if (isOtherRequest && guestDTO != null) {
+            String otherUserId = volunteerServiceClient.getOrCreateUserId(guestDTO);
+            logger.info("Resolved volunteer-service userId {} for guest email {}", otherUserId, guestDTO.getReqEmail());
+        }
+
         Request request = buildRequest(
                 requesterId,
                 requestDTO,
@@ -99,9 +110,7 @@ public class RequestServiceImpl implements RequestService {
         );
         Request savedRequest = requestRepository.save(request);
 
-        if (requestFor.getRequestForId() == 1 && requestDTO.getGuestDetails() != null) {
-            GuestDetailsDTO guestDTO = requestDTO.getGuestDetails();
-
+        if (isOtherRequest && guestDTO != null) {
             RequestGuestDetails guestDetails = RequestGuestDetails.builder()
                     .requestId(savedRequest.getRequestId())
                     .reqFname(guestDTO.getReqFname())

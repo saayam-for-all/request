@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 
 import java.io.Serializable;
 import java.time.ZonedDateTime;
+import java.util.List;
 
 /**
  * ClassName: Request
@@ -126,4 +127,21 @@ public class Request implements Serializable {
 
     @Column(name = "last_update_date", columnDefinition = "TIMESTAMP")
     private ZonedDateTime lastUpdatedAt;
+
+    /**
+     * Not persisted on Request itself - derived from volunteers_assigned
+     * (volunteer_type = LEAD) and populated by VolunteerAssignmentService
+     * whenever a Request is returned from the API.
+     */
+    @Transient
+    private String leadVolunteerUserId;
+
+    /**
+     * Not persisted on Request itself - derived from volunteers_assigned
+     * (volunteer_type = HELPING), which supports more than one helping
+     * volunteer per request.
+     */
+    @Transient
+    @Builder.Default
+    private List<String> helpingVolunteerUserIds = List.of();
 }

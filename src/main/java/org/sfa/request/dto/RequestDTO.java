@@ -53,7 +53,7 @@ public class RequestDTO {
     @NotNull(message = "Request priority cannot be null")
     private RequestPriorityDTO requestPriority;
 
-    @NotNull(message = "Request type cannot be null")
+    // Optional: defaults to REMOTE in RequestServiceImpl when not supplied
     private RequestTypeDTO requestType;
 
     @NotNull(message = "Help category cannot be null")

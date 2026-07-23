@@ -36,7 +36,6 @@ public class JsonConverter {
         dto.setRequestDescription(request.getRequestDescription());
         dto.setAudioRequestDescription(request.getAudioRequestDescription());
         dto.setSubmittedAt(request.getSubmittedAt() != null ? request.getSubmittedAt().toString() : null);
-        dto.setLeadVolunteerUserId(request.getLeadVolunteerUserId());
         dto.setServicedAt(request.getServicedAt() != null ? request.getServicedAt().toString() : null);
         dto.setLastUpdatedAt(request.getLastUpdatedAt() != null ? request.getLastUpdatedAt().toString() : null);
 

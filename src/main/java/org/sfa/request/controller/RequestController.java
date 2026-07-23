@@ -12,7 +12,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.model.entity.Request;
 import org.sfa.request.dto.RequestDTO;
+import org.sfa.request.dto.RequestSummaryDTO;
+import org.sfa.request.dto.VolunteerAssignmentDTO;
 import org.sfa.request.service.api.RequestService;
+import org.sfa.request.service.api.VolunteerAssignmentService;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
 import org.sfa.request.utils.JsonConverter;
@@ -50,6 +53,9 @@ public class RequestController {
     private RequestService requestService;
     @Autowired
     private LocaleResolver localeResolver;
+
+    @Autowired
+    private VolunteerAssignmentService volunteerAssignmentService;
 
 //    private final SQSService sqsService;
 //    private final MessageSource messageSource;
@@ -169,13 +175,13 @@ public class RequestController {
     }
 
     @GetMapping
-    public ResponseEntity<SaayamResponse<PagedResponse<Request>>> getRequests(
+    public ResponseEntity<SaayamResponse<PagedResponse<RequestSummaryDTO>>> getRequests(
             @PathVariable @NotNull String requesterId,
             Pageable pageable,
             HttpServletRequest request
     ) {
         Locale locale = localeResolver.resolveLocale(request);
-        SaayamResponse<PagedResponse<Request>> response = requestService.getRequests(requesterId, pageable, locale);
+        SaayamResponse<PagedResponse<RequestSummaryDTO>> response = requestService.getRequests(requesterId, pageable, locale);
         return ResponseEntity.ok(response);
     }
 
@@ -222,6 +228,39 @@ public class RequestController {
     ) {
         Locale locale = localeResolver.resolveLocale(request);
         SaayamResponse<Request> response = requestService.resumeRequest(requesterId, requestId, locale);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "Assign a lead or helping volunteer to a request",
+            description = "Assigns the LEAD volunteer (at most one per request, reassigning replaces the " +
+                    "previous lead) or a HELPING volunteer (multiple allowed)."
+    )
+    @PostMapping("/{requestId}/volunteers")
+    public ResponseEntity<SaayamResponse<Request>> assignVolunteer(
+            @PathVariable @NotNull String requesterId,
+            @PathVariable @NotNull String requestId,
+            @RequestBody @Valid VolunteerAssignmentDTO assignmentDTO,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+        SaayamResponse<Request> response = volunteerAssignmentService.assignVolunteer(requesterId, requestId, assignmentDTO, locale);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(
+            summary = "Remove a volunteer assignment from a request",
+            description = "Removes either the lead or a helping volunteer's assignment to a request."
+    )
+    @DeleteMapping("/{requestId}/volunteers/{volunteerId}")
+    public ResponseEntity<SaayamResponse<Void>> removeVolunteer(
+            @PathVariable @NotNull String requesterId,
+            @PathVariable @NotNull String requestId,
+            @PathVariable @NotNull String volunteerId,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+        SaayamResponse<Void> response = volunteerAssignmentService.removeVolunteer(requesterId, requestId, volunteerId, locale);
         return ResponseEntity.ok(response);
     }
 

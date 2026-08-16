@@ -22,6 +22,7 @@ public interface RequestService {
     SaayamResponse<Request> createRequest(String requesterId, RequestDTO requestDTO, Locale locale);
     SaayamResponse<Request> getRequestById(String requesterId, String requestId, Locale locale);
     SaayamResponse<PagedResponse<Request>> getRequests(String requesterId, Pageable pageable, Locale locale);
+    SaayamResponse<PagedResponse<Request>> getOthersRequests(String requesterId, Pageable pageable, Locale locale);
     SaayamResponse<Request> updateRequest(String requesterId, String requestId, RequestDTO requestDTO, Locale locale);
     SaayamResponse<Void> deleteRequest(String requesterId, String requestId, Locale locale);
     SaayamResponse<Request> cancelRequest(String requesterId, String requestId, Locale locale);

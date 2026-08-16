@@ -179,6 +179,23 @@ public class RequestController {
         return ResponseEntity.ok(response);
     }
 
+    @Operation(
+            summary = "Get requests made on behalf of others",
+            description = "Retrieves the paginated list of active requests that the specified requester created " +
+                    "on someone else's behalf, for use in the Dashboard's \"Others' Requests\" tab."
+    )
+    @GetMapping("/others")
+    public ResponseEntity<SaayamResponse<PagedResponse<Request>>> getOthersRequests(
+            @Parameter(description = "Unique identifier of the requester", required = true, example = "SID-00-000-000-0001")
+            @PathVariable @NotNull String requesterId,
+            Pageable pageable,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+        SaayamResponse<PagedResponse<Request>> response = requestService.getOthersRequests(requesterId, pageable, locale);
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/{requestId}")
     public ResponseEntity<SaayamResponse<Request>> updateRequest(
             @PathVariable @NotNull String requesterId,

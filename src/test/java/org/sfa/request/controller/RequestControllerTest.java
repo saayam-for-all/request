@@ -177,6 +177,41 @@ class RequestControllerTest {
 
     /**
      * Method under test:
+     * {@link RequestController#getOthersRequests(String, Pageable, HttpServletRequest)}
+     */
+    @Test
+    void testGetOthersRequests() throws Exception {
+        // Arrange
+        PagedResponse<Request> pagedResponse = new PagedResponse<>(
+                new org.springframework.data.domain.PageImpl<>(java.util.Collections.emptyList()));
+        SaayamResponse.SaayamResponseBuilder<PagedResponse<Request>> builderResult = SaayamResponse.builder();
+        SaayamResponse.SaayamResponseBuilder<PagedResponse<Request>> successResult = builderResult.data(pagedResponse)
+                .message("Not all who wander are lost")
+                .saayamCode("Saayam Code")
+                .statusCode(1)
+                .success(true);
+        SaayamResponse<PagedResponse<Request>> buildResult = successResult
+                .timestamp(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC))
+                .build();
+        when(requestService.getOthersRequests(Mockito.<String>any(), Mockito.<Pageable>any(), Mockito.<Locale>any()))
+                .thenReturn(buildResult);
+        when(localeResolver.resolveLocale(Mockito.<HttpServletRequest>any())).thenReturn(Locale.getDefault());
+        MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders
+                .get("/api/v1.0.0/requests/{requesterId}/others", "42");
+
+        // Act and Assert
+        MockMvcBuilders.standaloneSetup(requestController)
+                .setCustomArgumentResolvers(new org.springframework.data.web.PageableHandlerMethodArgumentResolver())
+                .build()
+                .perform(requestBuilder)
+                .andExpect(MockMvcResultMatchers.status().isOk())
+                .andExpect(MockMvcResultMatchers.content().contentType("application/json"))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.success").value(true))
+                .andExpect(MockMvcResultMatchers.jsonPath("$.data.content").isArray());
+    }
+
+    /**
+     * Method under test:
      * {@link RequestController#deleteRequest(String, String, HttpServletRequest)}
      */
     @Test

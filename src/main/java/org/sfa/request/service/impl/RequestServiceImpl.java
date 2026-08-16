@@ -8,6 +8,7 @@ import org.sfa.request.exception.types.EnumUnspecifiedException;
 import org.sfa.request.exception.types.InvalidRequestException;
 import org.sfa.request.exception.types.NotFoundException;
 import org.sfa.request.model.entity.*;
+import org.sfa.request.model.enums.RequestForEnum;
 import org.sfa.request.model.enums.RequestStatusEnum;
 import org.sfa.request.repository.*;
 import org.sfa.request.response.SaayamResponse;
@@ -124,6 +125,21 @@ public class RequestServiceImpl implements RequestService {
 
         logger.info("Retrieved {} requests for requester ID: {}", requests.getContent().size(), requesterId);
         String message = messageSource.getMessage("success.requestsRetrieved", null, locale);
+        return SaayamResponse.success(SaayamStatusCode.SUCCESS, message, pagedResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SaayamResponse<PagedResponse<Request>> getOthersRequests(String requesterId, Pageable pageable, Locale locale) {
+        Sort sort = pageable.getSort().isSorted() ? pageable.getSort() : Sort.by(Sort.Direction.DESC, "requestId");
+        Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+        Page<Request> requests = requestRepository.findAllActiveByRequesterIdAndRequestFor(
+                requesterId, RequestForEnum.OTHER, RequestStatusEnum.DELETED.getId(), sortedPageable);
+
+        PagedResponse<Request> pagedResponse = new PagedResponse<>(requests);
+
+        logger.info("Retrieved {} requests made by requester ID {} on behalf of others", requests.getContent().size(), requesterId);
+        String message = messageSource.getMessage("success.othersRequestsRetrieved", null, locale);
         return SaayamResponse.success(SaayamStatusCode.SUCCESS, message, pagedResponse);
     }
 

@@ -1,6 +1,7 @@
 package org.sfa.request.repository;
 
 import org.sfa.request.model.entity.Request;
+import org.sfa.request.model.enums.RequestForEnum;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -26,6 +27,14 @@ public interface RequestRepository extends JpaRepository<Request, String> {
     @Query("SELECT r FROM Request r WHERE r.requesterId = :requesterId AND r.requestStatus.requestStatusId != :deletedStatusId")
     Page<Request> findAllActiveByRequesterId(
             @Param("requesterId") String requesterId,
+            @Param("deletedStatusId") int deletedStatusId,
+            Pageable pageable
+    );
+
+    @Query("SELECT r FROM Request r WHERE r.requesterId = :requesterId AND r.requestFor.For = :requestFor AND r.requestStatus.requestStatusId != :deletedStatusId")
+    Page<Request> findAllActiveByRequesterIdAndRequestFor(
+            @Param("requesterId") String requesterId,
+            @Param("requestFor") RequestForEnum requestFor,
             @Param("deletedStatusId") int deletedStatusId,
             Pageable pageable
     );

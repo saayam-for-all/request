@@ -1,0 +1,43 @@
+%% Secondary summary only. The intentionally laid-out Draw.io file is primary.
+stateDiagram-v2
+  direction LR
+  [*] --> CREATED: POST create / backend [implemented]
+
+  CREATED --> PENDING_VOLUNTEER_ASSIGNMENT: start matching [intended]
+  PENDING_VOLUNTEER_ASSIGNMENT --> PENDING_VOLUNTEER_ASSIGNMENT: timeout / next batch [intended]
+  PENDING_VOLUNTEER_ASSIGNMENT --> IN_PROGRESS: accept + handshake + lead assignment [intended]
+  PENDING_VOLUNTEER_ASSIGNMENT --> COMPLETED: usable AI fallback [intended]
+  IN_PROGRESS --> IN_PROGRESS: helper/reassignment/org work [partial/intended]
+  IN_PROGRESS --> COMPLETED: approved completion [intended]
+
+  CREATED --> CANCELLED: POST cancel [implemented]
+  PENDING_VOLUNTEER_ASSIGNMENT --> CANCELLED: cancel guard permits [implemented if state exists]
+  IN_PROGRESS --> CANCELLED: cancel guard permits [implemented if state exists]
+  COMPLETED --> CANCELLED: cancel guard permits [implemented if state exists]
+  CANCELLED --> CREATED: POST resume; previous state not retained [implemented]
+
+  CREATED --> DELETED: DELETE [implemented]
+  PENDING_VOLUNTEER_ASSIGNMENT --> DELETED: DELETE guard permits
+  IN_PROGRESS --> DELETED: DELETE guard permits
+  COMPLETED --> DELETED: DELETE guard permits
+  CANCELLED --> DELETED: DELETE
+  DELETED --> [*]
+
+  COMPLETED --> RATED_BY_REQUESTER: requester rates [enum intent only]
+  COMPLETED --> RATED_BY_VOLUNTEER: volunteer rates [enum intent only]
+
+  state "UNSPECIFIED (0) — sentinel; no entry path" as UNSPECIFIED
+  state "CREATED (1)" as CREATED
+  state "PENDING_VOLUNTEER_ASSIGNMENT (2)" as PENDING_VOLUNTEER_ASSIGNMENT
+  state "IN_PROGRESS (3)" as IN_PROGRESS
+  state "COMPLETED (4)" as COMPLETED
+  state "CANCELLED (5)" as CANCELLED
+  state "DELETED (6) — code-terminal" as DELETED
+  state "RATED_BY_REQUESTER (7) — questionable lifecycle state" as RATED_BY_REQUESTER
+  state "RATED_BY_VOLUNTEER (8) — questionable lifecycle state" as RATED_BY_VOLUNTEER
+
+  note right of RATED_BY_VOLUNTEER
+    Ratings are independent events in either order.
+    One status column cannot represent both ratings
+    while preserving COMPLETED.
+  end note

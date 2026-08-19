@@ -1,0 +1,226 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" modified="2026-08-12T00:00:00.000Z" agent="Codex architecture reconstruction" version="24.7.17" type="device" compressed="false" pages="1">
+  <diagram id="request-state-machine" name="Request State Machine">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="3900" pageHeight="1900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Saayam Request State Machine — Declared Design vs Reachable Behavior" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;fontSize=28;fontStyle=1;fontColor=#263238;align=center;verticalAlign=middle;spacing=2;" parent="1" vertex="1">
+          <mxGeometry x="40" y="18" width="3820" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Nine declared database states; maturity and transition ownership shown explicitly" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;overflow=hidden;fontSize=13;fontStyle=0;fontColor=#546E7A;align=center;verticalAlign=middle;spacing=2;" parent="1" vertex="1">
+          <mxGeometry x="40" y="58" width="3820" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_impl" value="Implemented on dev" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#2E7D32;strokeWidth=2;fontColor=#263238;fontSize=12;align=center;verticalAlign=middle;spacing=8;dashed=0;dashPattern=7 5;" parent="1" vertex="1">
+          <mxGeometry x="2750" y="92" width="190" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_partial" value="Partially implemented" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#B7791F;strokeWidth=2;fontColor=#263238;fontSize=12;align=center;verticalAlign=middle;spacing=8;dashed=0;dashPattern=7 5;" parent="1" vertex="1">
+          <mxGeometry x="2955" y="92" width="190" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_intended" value="Historical / intended" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3B6EA8;strokeWidth=2;fontColor=#263238;fontSize=12;align=center;verticalAlign=middle;spacing=8;dashed=1;dashPattern=7 5;" parent="1" vertex="1">
+          <mxGeometry x="3160" y="92" width="190" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_external" value="External module" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#7E57A3;strokeWidth=2;fontColor=#263238;fontSize=12;align=center;verticalAlign=middle;spacing=8;dashed=0;dashPattern=7 5;" parent="1" vertex="1">
+          <mxGeometry x="3365" y="92" width="190" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="leg_terminal" value="Terminal" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#2E7D32;strokeWidth=3;fontColor=#263238;fontSize=12;align=center;verticalAlign=middle;spacing=8;dashed=0;dashPattern=7 5;double=1;" parent="1" vertex="1">
+          <mxGeometry x="3570" y="92" width="150" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="lifecycle_group" value="PRIMARY LIFECYCLE" style="rounded=1;arcSize=8;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#90A4AE;dashed=1;dashPattern=4 4;fontSize=14;fontStyle=1;fontColor=#455A64;verticalAlign=top;align=left;spacingTop=8;spacingLeft=10;" parent="1" vertex="1">
+          <mxGeometry x="170" y="250" width="2500" height="900" as="geometry" />
+        </mxCell>
+        <mxCell id="side_group" value="CROSS-CUTTING CURRENT OPERATIONS" style="rounded=1;arcSize=8;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#90A4AE;dashed=1;dashPattern=4 4;fontSize=14;fontStyle=1;fontColor=#455A64;verticalAlign=top;align=left;spacingTop=8;spacingLeft=10;" parent="1" vertex="1">
+          <mxGeometry x="170" y="1190" width="2500" height="580" as="geometry" />
+        </mxCell>
+        <mxCell id="rating_group" value="FEEDBACK MODELING PROBLEM" style="rounded=1;arcSize=8;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#90A4AE;dashed=1;dashPattern=4 4;fontSize=14;fontStyle=1;fontColor=#455A64;verticalAlign=top;align=left;spacingTop=8;spacingLeft=10;" parent="1" vertex="1">
+          <mxGeometry x="2750" y="250" width="980" height="1040" as="geometry" />
+        </mxCell>
+        <mxCell id="s_start" value="START" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed=0;fillColor=#D5E8D4;strokeColor=#2E7D32;strokeWidth=3;fontColor=#263238;fontSize=14;fontStyle=1;dashed=0;" parent="1" vertex="1">
+          <mxGeometry x="240" y="500" width="130" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="s_created" value="CREATED (1)&lt;br&gt;&lt;font style='font-size:11px'&gt;Initial + resume target&lt;/font&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#2E7D32;strokeWidth=2;fontColor=#263238;fontSize=14;align=center;verticalAlign=middle;spacing=8;dashed=0;dashPattern=7 5;" parent="1" vertex="1">
+          <mxGeometry x="500" y="460" width="250" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="s_pending" value="PENDING_VOLUNTEER_&lt;br&gt;ASSIGNMENT (2)" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3B6EA8;strokeWidth=2;fontColor=#263238;fontSize=14;align=center;verticalAlign=middle;spacing=8;dashed=1;dashPattern=7 5;" parent="1" vertex="1">
+          <mxGeometry x="960" y="460" width="300" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="s_progress" value="IN_PROGRESS (3)&lt;br&gt;&lt;font style='font-size:11px'&gt;Lead assigned; work underway&lt;/font&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3B6EA8;strokeWidth=2;fontColor=#263238;fontSize=14;align=center;verticalAlign=middle;spacing=8;dashed=1;dashPattern=7 5;" parent="1" vertex="1">
+          <mxGeometry x="1470" y="460" width="280" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="s_completed" value="COMPLETED (4)&lt;br&gt;&lt;font style='font-size:11px'&gt;Fulfillment finished&lt;/font&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3B6EA8;strokeWidth=2;fontColor=#263238;fontSize=14;align=center;verticalAlign=middle;spacing=8;dashed=1;dashPattern=7 5;" parent="1" vertex="1">
+          <mxGeometry x="1990" y="460" width="280" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="primary_note" value="The enum and seed rows exist on dev. No dev API writes states 2, 3, or 4." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=18;fillColor=#E8F0FE;strokeColor=#3B6EA8;fontColor=#263238;fontSize=12;align=left;verticalAlign=top;spacing=10;" parent="1" vertex="1">
+          <mxGeometry x="900" y="720" width="1050" height="95" as="geometry" />
+        </mxCell>
+        <mxCell id="failure_note" value="Matching/AI failure is an operational outcome in the old flow.&lt;br&gt;No FAILED request state is declared; none is added here." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=18;fillColor=#FFEBEE;strokeColor=#B85450;fontColor=#263238;fontSize=12;align=left;verticalAlign=top;spacing=10;" parent="1" vertex="1">
+          <mxGeometry x="900" y="865" width="1050" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="s_cancelled" value="CANCELLED (5)&lt;br&gt;&lt;font style='font-size:11px'&gt;Reversible on dev&lt;/font&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#2E7D32;strokeWidth=2;fontColor=#263238;fontSize=14;align=center;verticalAlign=middle;spacing=8;dashed=0;dashPattern=7 5;" parent="1" vertex="1">
+          <mxGeometry x="760" y="1350" width="250" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="s_deleted" value="DELETED (6)&lt;br&gt;&lt;font style='font-size:11px'&gt;Soft-delete; hidden from active reads&lt;/font&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#2E7D32;strokeWidth=3;fontColor=#263238;fontSize=14;align=center;verticalAlign=middle;spacing=8;dashed=0;dashPattern=7 5;double=1;" parent="1" vertex="1">
+          <mxGeometry x="2050" y="1340" width="300" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="s_unspecified" value="UNSPECIFIED (0)&lt;br&gt;&lt;font style='font-size:11px'&gt;Sentinel; no entry path&lt;/font&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#2E7D32;strokeWidth=2;fontColor=#263238;fontSize=14;align=center;verticalAlign=middle;spacing=8;dashed=1;dashPattern=7 5;" parent="1" vertex="1">
+          <mxGeometry x="260" y="1520" width="280" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="cancel_note" value="Current cancel guard accepts every non-deleted status except CANCELLED.&lt;br&gt;Current resume always returns to CREATED; no previous-state field exists." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=18;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#263238;fontSize=12;align=left;verticalAlign=top;spacing=10;" parent="1" vertex="1">
+          <mxGeometry x="1080" y="1505" width="770" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="s_rater" value="RATED_BY_REQUESTER (7)" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3B6EA8;strokeWidth=2;fontColor=#263238;fontSize=14;align=center;verticalAlign=middle;spacing=8;dashed=1;dashPattern=7 5;" parent="1" vertex="1">
+          <mxGeometry x="2920" y="480" width="300" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="s_ratev" value="RATED_BY_VOLUNTEER (8)" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#3B6EA8;strokeWidth=2;fontColor=#263238;fontSize=14;align=center;verticalAlign=middle;spacing=8;dashed=1;dashPattern=7 5;" parent="1" vertex="1">
+          <mxGeometry x="2920" y="690" width="300" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="rating_problem" value="Both actors can rate independently and in either order. A single request_status value cannot represent both, preserve COMPLETED, or store score/comment.&lt;br&gt;&lt;br&gt;&lt;b&gt;Architectural conclusion:&lt;/b&gt; model ratings as separate records/events unless product policy defines a composite state model." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;size=18;fillColor=#FFFDE7;strokeColor=#3B6EA8;fontColor=#263238;fontSize=12;align=left;verticalAlign=top;spacing=10;" parent="1" vertex="1">
+          <mxGeometry x="2820" y="890" width="700" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="se1" value="POST create / backend" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#2E7D32;strokeWidth=2;endArrow=block;endFill=1;dashed=0;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="s_start" target="s_created">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se2" value="start matching / backend-orchestrator" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#3B6EA8;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="s_created" target="s_pending">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se3" value="timeout: next volunteer batch" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#3B6EA8;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_pending" target="s_pending">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1110" y="350" />
+              <mxPoint x="1210" y="350" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="se4" value="accept + handshake + lead assignment" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#3B6EA8;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="s_pending" target="s_progress">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se5" value="helper/reassignment/org collaboration" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#3B6EA8;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_progress" target="s_progress">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1610" y="350" />
+              <mxPoint x="1710" y="350" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="se6" value="approved completion" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#3B6EA8;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="s_progress" target="s_completed">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se7" value="AI fallback returns usable response" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#3B6EA8;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_pending" target="s_completed">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1110" y="650" />
+              <mxPoint x="2130" y="650" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="se8" value="POST cancel" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#2E7D32;strokeWidth=2;endArrow=block;endFill=1;dashed=0;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_created" target="s_cancelled">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="625" y="1050" />
+              <mxPoint x="885" y="1050" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="se9" value="POST resume → CREATED" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#2E7D32;strokeWidth=2;endArrow=block;endFill=1;dashed=0;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_cancelled" target="s_created">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="650" y="1407" />
+              <mxPoint x="430" y="1407" />
+              <mxPoint x="430" y="520" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="se10" value="cancel guard would allow" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#2E7D32;strokeWidth=2;endArrow=block;endFill=1;dashed=0;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_pending" target="s_cancelled">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1110" y="1080" />
+              <mxPoint x="1110" y="1407" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="se11" value="cancel guard would allow" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#2E7D32;strokeWidth=2;endArrow=block;endFill=1;dashed=0;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_progress" target="s_cancelled">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1610" y="1120" />
+              <mxPoint x="1050" y="1120" />
+              <mxPoint x="1050" y="1407" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="se12" value="cancel guard would allow" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#2E7D32;strokeWidth=2;endArrow=block;endFill=1;dashed=0;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_completed" target="s_cancelled">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2130" y="1160" />
+              <mxPoint x="1050" y="1160" />
+              <mxPoint x="1050" y="1407" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="se13" value="DELETE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#2E7D32;strokeWidth=2;endArrow=block;endFill=1;dashed=0;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_created" target="s_deleted">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="625" y="1010" />
+              <mxPoint x="2200" y="1010" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="se14" value="DELETE" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#2E7D32;strokeWidth=2;endArrow=block;endFill=1;dashed=0;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="s_cancelled" target="s_deleted">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se15" value="DELETE guard would allow" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#2E7D32;strokeWidth=2;endArrow=block;endFill=1;dashed=0;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_pending" target="s_deleted">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1110" y="1060" />
+              <mxPoint x="2200" y="1060" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="se16" value="DELETE guard would allow" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#2E7D32;strokeWidth=2;endArrow=block;endFill=1;dashed=0;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_progress" target="s_deleted">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="1610" y="1100" />
+              <mxPoint x="2200" y="1100" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="se17" value="DELETE guard would allow" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#2E7D32;strokeWidth=2;endArrow=block;endFill=1;dashed=0;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_completed" target="s_deleted">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2130" y="1180" />
+              <mxPoint x="2200" y="1180" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="se18" value="requester rating (enum intent only)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#3B6EA8;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="s_completed" target="s_rater">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="se19" value="volunteer rating (enum intent only)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#3B6EA8;strokeWidth=2;endArrow=block;endFill=1;dashed=1;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;" edge="1" parent="1" source="s_completed" target="s_ratev">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="2460" y="520" />
+              <mxPoint x="2460" y="742" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="se20" value="DELETE guard would allow" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#2E7D32;strokeWidth=2;endArrow=block;endFill=1;dashed=0;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_rater" target="s_deleted">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="3070" y="1280" />
+              <mxPoint x="2460" y="1280" />
+              <mxPoint x="2460" y="1405" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="se21" value="DELETE guard would allow" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=18;html=1;strokeColor=#2E7D32;strokeWidth=2;endArrow=block;endFill=1;dashed=0;dashPattern=7 5;fontSize=12;fontColor=#263238;labelBackgroundColor=#FFFFFF;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="s_ratev" target="s_deleted">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="3070" y="1310" />
+              <mxPoint x="2460" y="1310" />
+              <mxPoint x="2460" y="1405" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,0 +1,36 @@
+# Controlled local environment for the notification feature demo.
+# Nothing here touches AWS or any shared Saayam environment.
+services:
+  postgres:
+    image: postgres:16
+    container_name: saayam-notif-db
+    environment:
+      POSTGRES_DB: saayam
+      POSTGRES_USER: saayam
+      POSTGRES_PASSWORD: saayam
+    ports:
+      - "55432:5432"
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U saayam -d saayam"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  localstack:
+    # Pinned to the community v3 line. Do NOT use :latest -- it now resolves to a
+    # licence-gated Pro image.
+    image: localstack/localstack:3
+    container_name: saayam-notif-localstack
+    environment:
+      SERVICES: sqs,ses,sns
+      DEBUG: "0"
+      AWS_DEFAULT_REGION: us-east-1
+    ports:
+      - "4566:4566"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:4566/_localstack/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30

@@ -3,12 +3,15 @@ package org.sfa.request.model.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.ZonedDateTime;
+
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "request_guest_details", schema = "virginia_dev_saayam_rdbms")
+@Table(name = "request_other_details", schema = "virginia_dev_saayam_rdbms")
 public class RequestGuestDetails {
 
     @Id
@@ -35,4 +38,10 @@ public class RequestGuestDetails {
 
     @Column(name = "req_pref_lang", length = 50)
     private String reqPrefLang;
+
+    @Column(name = "last_updated_at")
+    private ZonedDateTime lastUpdatedAt;
+
+    @Column(name = "user_id")
+    private String userId;
 }

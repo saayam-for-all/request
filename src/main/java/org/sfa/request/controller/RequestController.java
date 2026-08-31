@@ -33,6 +33,10 @@ import java.util.List;
 import java.util.Locale;
 import org.springframework.web.multipart.MultipartFile;
 import java.util.Map;
+import org.sfa.request.dto.GetHelpRequestsDTO;
+import org.sfa.request.dto.UserHelpRequestsDTO;
+import org.sfa.request.dto.RequestUpdateDTO;
+import org.sfa.request.dto.AdminRequestDTO;
 /**
  * ClassName: RequestController
  * Package: org.sfa.request.controller
@@ -168,6 +172,60 @@ public class RequestController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/help-requests")
+    public ResponseEntity<SaayamResponse<PagedResponse<GetHelpRequestsDTO>>> getAllHelpRequests(Pageable pageable, HttpServletRequest request) {
+        Locale locale = localeResolver.resolveLocale(request);
+
+        SaayamResponse<PagedResponse<GetHelpRequestsDTO>> response =
+                requestService.getAllHelpRequests(pageable, locale);
+
+        return ResponseEntity.ok(response);
+     }
+
+     @PostMapping("/help-requests")
+public ResponseEntity<SaayamResponse<PagedResponse<GetHelpRequestsDTO>>> getUserHelpRequests(
+        @RequestBody UserHelpRequestsDTO userHelpRequestsDTO,
+        HttpServletRequest request
+) {
+    Locale locale = localeResolver.resolveLocale(request);
+
+    int page = userHelpRequestsDTO.getPage() != null
+            ? userHelpRequestsDTO.getPage()
+            : 0;
+
+    int size = userHelpRequestsDTO.getSize() != null
+            ? userHelpRequestsDTO.getSize()
+            : 10;
+
+    SaayamResponse<PagedResponse<GetHelpRequestsDTO>> response =
+            requestService.getUserHelpRequests(
+                    userHelpRequestsDTO.getUserId(),
+                    page,
+                    size,
+                    locale
+            );
+
+    return ResponseEntity.ok(response);
+}
+
+    @GetMapping("/admin/requests")
+public ResponseEntity<SaayamResponse<PagedResponse<AdminRequestDTO>>> getAdminRequests(
+        Pageable pageable,
+        HttpServletRequest request
+) {
+
+    Locale locale =
+            localeResolver.resolveLocale(request);
+
+    SaayamResponse<PagedResponse<AdminRequestDTO>> response =
+            requestService.getAdminRequests(
+                    pageable,
+                    locale
+            );
+
+    return ResponseEntity.ok(response);
+}
+
     @GetMapping
     public ResponseEntity<SaayamResponse<PagedResponse<Request>>> getRequests(
             @RequestParam @NotNull String requesterId,
@@ -179,21 +237,20 @@ public class RequestController {
         return ResponseEntity.ok(response);
     }
 
-    @PutMapping("/{requestId}")
-    public ResponseEntity<SaayamResponse<Request>> updateRequest(
-            @PathVariable @NotNull String requestId,
-            @RequestBody @Valid RequestDTO requestDTO,
-            HttpServletRequest request
-    ) {
-        Locale locale = localeResolver.resolveLocale(request);
-        SaayamResponse<Request> response = requestService.updateRequest(
-                requestDTO.getRequesterId(),
-                requestId,
-                requestDTO,
-                locale
-        );
+    @PutMapping
+     public ResponseEntity<SaayamResponse<Request>> updateRequest(@RequestBody @Valid RequestUpdateDTO requestUpdateDTO, HttpServletRequest request) {
+
+        Locale locale =
+                localeResolver.resolveLocale(request);
+
+        SaayamResponse<Request> response =
+                requestService.updateRequest(
+                        requestUpdateDTO,
+                        locale
+                );
+
         return ResponseEntity.ok(response);
-    }
+}
 
     @DeleteMapping("/{requestId}")
     public ResponseEntity<SaayamResponse<Void>> deleteRequest(

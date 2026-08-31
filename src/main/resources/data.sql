@@ -1,5 +1,5 @@
 -- Insert initial data into request_status table
-INSERT INTO request_status (request_status_id, request_status, request_status_desc, last_updated_date)
+INSERT INTO request_statuses (request_status_id, request_status, request_status_desc, last_updated_date)
 VALUES
     (0, 'UNSPECIFIED', 'Unspecified status', now()),
     (1, 'CREATED', 'Request has been created', now()),
@@ -13,7 +13,7 @@ VALUES
 ON CONFLICT (request_status_id) DO NOTHING;
 
 -- Insert initial data into request_priority table
-INSERT INTO request_priority (request_priority_id, request_priority, request_priority_desc, last_updated_date)
+INSERT INTO request_priorities (request_priority_id, request_priority, request_priority_desc, last_updated_date)
 VALUES
     (0, 'UNSPECIFIED', 'Unspecified priority', now()),
     (1, 'LOW', 'Low priority', now()),
@@ -23,7 +23,7 @@ VALUES
 ON CONFLICT (request_priority_id) DO NOTHING;
 
 -- Insert initial data into request_type table
-INSERT INTO request_type (request_type_id, request_type, request_type_desc, last_updated_date)
+INSERT INTO request_types (request_type_id, request_type, request_type_desc, last_updated_date)
 VALUES
     (0, 'UNSPECIFIED', 'Unspecified type', now()),
     (1, 'IN_PERSON', 'In-person request', now()),
@@ -31,7 +31,7 @@ VALUES
 ON CONFLICT (request_type_id) DO NOTHING;
 
 -- Insert initial data into request_category table
-INSERT INTO request_category (request_category_id, request_category, request_category_desc, last_updated_date)
+INSERT INTO request_categories (request_category_id, request_category, request_category_desc, last_updated_date)
 VALUES
     (0, 'UNSPECIFIED', 'Unspecified category', now()),
     (1, 'TECHNICAL_SUPPORT', 'Technical support request', now()),

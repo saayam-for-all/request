@@ -4,11 +4,13 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
 @Data
 @Getter
 @Setter
 @Entity
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Table(name = "request_isleadvol", schema = "virginia_dev_saayam_rdbms")
 public class RequestIsLeadVolunteer {
 
@@ -22,7 +24,7 @@ public class RequestIsLeadVolunteer {
     @Column(name = "req_islead_desc")
     private String reqIsleadDesc;
 
-    @Column(name = "last_updated_date")
+    @Column(name = "last_updated_at")
     private LocalDateTime lastUpdatedDate;
 
 }

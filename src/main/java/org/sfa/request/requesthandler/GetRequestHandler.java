@@ -15,9 +15,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
+import org.sfa.request.dto.GetHelpRequestsDTO;
 
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * ClassName: GetRequestHandler
@@ -36,11 +38,53 @@ public class GetRequestHandler extends BaseRequestHandler<APIGatewayProxyRequest
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent requestEvent, Context lambdaContext) {
         try {
-            String requesterId = requestEvent.getPathParameters().get("requesterId");
+
             Locale locale = getLocaleFromRequest(requestEvent);
 
-            if (requestEvent.getPathParameters().containsKey("requestId")) {
-                String requestId = requestEvent.getPathParameters().get("requestId");
+            String path = requestEvent.getPath();
+            String resource = requestEvent.getResource();
+
+            log.info("Request path: {}", path);
+            log.info("Request resource: {}", resource);
+
+            if ((path != null && path.endsWith("/help-requests")) ||
+                    (resource != null && resource.endsWith("/help-requests")) ||
+                    requestEvent.getPathParameters() == null) {
+
+                if (requestEvent.getQueryStringParameters() == null) {
+                    requestEvent.setQueryStringParameters(new HashMap<>());
+                }
+
+                int page = Integer.parseInt(
+                        requestEvent.getQueryStringParameters()
+                                .getOrDefault("page", "0")
+                );
+
+                int size = Integer.parseInt(
+                        requestEvent.getQueryStringParameters()
+                                .getOrDefault("size", "10")
+                );
+
+                Pageable pageable = PageRequest.of(page, size);
+
+                SaayamResponse<PagedResponse<GetHelpRequestsDTO>> response =
+                        requestService.getAllHelpRequests(
+                                pageable,
+                                locale
+                        );
+
+                return createResponse(
+                        HttpStatus.OK.value(),
+                        response
+                );
+            }
+            
+            Map<String, String> pathParameters = requestEvent.getPathParameters();
+
+            String requesterId = pathParameters.get("requesterId");
+            
+            if (pathParameters.containsKey("requestId")) {
+                String requestId = pathParameters.get("requestId");
                 try {
                     SaayamResponse<Request> response = requestService.getRequestById(requesterId, requestId, locale);
                     return createResponse(HttpStatus.OK.value(), response);
@@ -65,3 +109,6 @@ public class GetRequestHandler extends BaseRequestHandler<APIGatewayProxyRequest
         }
     }
 }
+
+
+

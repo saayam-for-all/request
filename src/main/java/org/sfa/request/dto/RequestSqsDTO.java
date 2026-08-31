@@ -24,7 +24,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class RequestSqsDTO {
     private String requestId;
-    private String requesterId;
+    private String creatorId;
+    private String beneficiaryId;
     private String requestStatus;
     private String requestPriority;
     private String requestType;

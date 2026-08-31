@@ -28,7 +28,8 @@ public class JsonConverter {
     public static String convertRequestToJson(Request request) {
         RequestSqsDTO dto = new RequestSqsDTO();
         dto.setRequestId(request.getRequestId());
-        dto.setRequesterId(request.getRequesterId());
+        dto.setCreatorId(request.getCreatorId());
+        dto.setBeneficiaryId(request.getBeneficiaryId());
         dto.setRequestStatus(request.getRequestStatus().getStatus());
         dto.setRequestPriority(request.getRequestPriority().getPriority());
         dto.setRequestType(request.getRequestType().getType());

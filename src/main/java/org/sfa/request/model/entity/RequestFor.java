@@ -31,7 +31,7 @@ public class RequestFor {
     @Column(name = "req_for_desc", columnDefinition = "VARCHAR(255)")
     private String description;
 
-    @Column(name = "last_updated_date", columnDefinition = "TIMESTAMP")
+    @Column(name = "last_updated_at", columnDefinition = "TIMESTAMP")
     private ZonedDateTime lastUpdatedAt;
 
     @JsonIgnore

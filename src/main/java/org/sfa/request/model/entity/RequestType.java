@@ -13,7 +13,7 @@ import java.util.Set;
 @AllArgsConstructor
 @Entity(name = "RequestType")
 @Table(
-        name = "request_type",
+        name = "request_types",
         schema = "virginia_dev_saayam_rdbms",
         uniqueConstraints = {
                 @UniqueConstraint(name = "request_type_id_unique", columnNames = "request_type_id")
@@ -31,7 +31,7 @@ public class RequestType {
     @Column(name = "req_type_desc", columnDefinition = "VARCHAR(255)")
     private String description;
 
-    @Column(name = "last_updated_date", columnDefinition = "TIMESTAMP")
+    @Column(name = "last_updated_at", columnDefinition = "TIMESTAMP")
     private ZonedDateTime lastUpdatedAt;
 
     @JsonIgnore

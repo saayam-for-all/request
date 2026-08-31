@@ -3,8 +3,13 @@ package org.sfa.request.service.impl;
 import org.sfa.request.constant.SaayamStatusCode;
 import org.sfa.request.dto.GuestDetailsDTO;
 import org.sfa.request.dto.ReqAddInfoDTO;
+import org.sfa.request.dto.RequestUpdateDTO;
+import org.sfa.request.dto.AdminRequestDTO;
+import org.sfa.request.service.api.UserLambdaService;
+import org.sfa.request.model.enums.RequestForEnum;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.dto.RequestDTO;
+import org.sfa.request.dto.GetHelpRequestsDTO;
 import org.sfa.request.exception.types.ConflictException;
 import org.sfa.request.exception.types.EnumUnspecifiedException;
 import org.sfa.request.exception.types.InvalidRequestException;
@@ -25,6 +30,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 
 import java.io.File;
 import java.time.LocalDateTime;
@@ -92,6 +98,7 @@ public class RequestServiceImpl implements RequestService {
     private final MessageSource messageSource;
     private final ReqAddInfoRepository reqAddInfoRepository;
     private final UserRepository userRepository;
+    private final UserLambdaService userLambdaService;
 
     private final S3Client s3Client;
     @Value("${saayam.s3.buckets.usPrivate}")
@@ -115,8 +122,8 @@ public class RequestServiceImpl implements RequestService {
 
         validateEnumIds(requestDTO, locale);
 
-        String userTimezone = getUserTimezone(requesterId);
-        logger.info("User timezone for {}: {}", requesterId, userTimezone);
+        //String userTimezone = getUserTimezone(requesterId);
+        //logger.info("User timezone for {}: {}", requesterId, userTimezone);
 
         RequestPriority requestPriority = getRequestPriority(requestDTO.getRequestPriority().getRequestPriorityId(), locale);
         RequestType requestType = getRequestType(requestDTO.getRequestType().getRequestTypeId(), locale);
@@ -125,8 +132,46 @@ public class RequestServiceImpl implements RequestService {
         RequestStatus requestStatus = getRequestStatus(RequestStatusEnum.CREATED.getId(), locale);
         RequestIsLeadVolunteer isLeadVolunteer = getIsLeadVolunteer(requestDTO.getIsLeadVolunteer(), locale);
 
+        String creatorId = requesterId;
+        String beneficiaryId = requesterId;
+
+        if (requestFor.getRequestForId()
+                == RequestForEnum.OTHER.getId()) {
+
+            if (requestDTO.getGuestDetails() == null) {
+                throw new InvalidRequestException(
+                        "Guest details are required when request is for OTHER"
+                );
+            }
+
+            logger.info(
+                    "Request is for OTHER. Resolving beneficiary SID..."
+            );
+
+            beneficiaryId =
+                    userLambdaService.getOrCreateUser(
+                            requestDTO
+                    );
+
+            logger.info(
+                    "Resolved creatorId={}, beneficiaryId={}",
+                    creatorId,
+                    beneficiaryId
+            );
+        }
+
+        String userTimezone =
+                getUserTimezone(beneficiaryId);
+
+        logger.info(
+            "User timezone for beneficiary {}: {}",
+            beneficiaryId,
+            userTimezone
+        );
+
         Request request = buildRequest(
-                requesterId,
+                creatorId,
+                beneficiaryId,
                 requestDTO,
                 requestPriority,
                 requestType,
@@ -145,6 +190,7 @@ public class RequestServiceImpl implements RequestService {
 
                 RequestGuestDetails guestDetails = RequestGuestDetails.builder()
                         .requestId(savedRequest.getRequestId())
+                        .userId(beneficiaryId)
                         .reqFname(guestDTO.getReqFname())
                         .reqLname(guestDTO.getReqLname())
                         .reqEmail(guestDTO.getReqEmail())
@@ -191,8 +237,8 @@ public class RequestServiceImpl implements RequestService {
 
     @Override
     @Transactional(readOnly = true)
-    public SaayamResponse<Request> getRequestById(String requesterId, String requestId, Locale locale) {
-        Request request = findActiveRequest(requesterId, requestId, locale);
+    public SaayamResponse<Request> getRequestById(String creatorId, String requestId, Locale locale) {
+        Request request = findActiveRequest(creatorId, requestId, locale);
         logger.info("Retrieved request with ID: {}", requestId);
         String message = messageSource.getMessage("success.requestFound", new Object[]{requestId}, locale);
         return SaayamResponse.success(SaayamStatusCode.SUCCESS, message, request);
@@ -200,42 +246,173 @@ public class RequestServiceImpl implements RequestService {
 
     @Override
     @Transactional(readOnly = true)
-    public SaayamResponse<PagedResponse<Request>> getRequests(String requesterId, Pageable pageable, Locale locale) {
+    public SaayamResponse<PagedResponse<Request>> getRequests(String creatorId, Pageable pageable, Locale locale) {
         Sort sort = pageable.getSort().isSorted() ? pageable.getSort() : Sort.by(Sort.Direction.DESC, "requestId");
         Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
-        Page<Request> requests = requestRepository.findAllActiveByRequesterId(requesterId, RequestStatusEnum.DELETED.getId(), sortedPageable);
+        Page<Request> requests = requestRepository.findAllActiveByCreatorId(creatorId, RequestStatusEnum.DELETED.getId(), sortedPageable);
 
         PagedResponse<Request> pagedResponse = new PagedResponse<>(requests);
 
-        logger.info("Retrieved {} requests for requester ID: {}", requests.getContent().size(), requesterId);
+        logger.info("Retrieved {} requests for requester ID: {}", requests.getContent().size(), creatorId);
         String message = messageSource.getMessage("success.requestsRetrieved", null, locale);
         return SaayamResponse.success(SaayamStatusCode.SUCCESS, message, pagedResponse);
     }
 
     @Override
-    @Transactional
-    public SaayamResponse<Request> updateRequest(String requesterId, String requestId, RequestDTO requestDTO, Locale locale) {
-        Request request = findActiveRequest(requesterId, requestId, locale);
+    @Transactional(readOnly = true)
+    public SaayamResponse<PagedResponse<GetHelpRequestsDTO>> getAllHelpRequests(Pageable pageable, Locale locale) {
+        Page<GetHelpRequestsDTO> requests =
+                requestRepository.findAllHelpRequests(
+                        RequestStatusEnum.DELETED.getId(),
+                        pageable
+                );
 
-        if (request.getRequestStatus().getRequestStatusId() == RequestStatusEnum.CANCELLED.getId()) {
-            throw new InvalidRequestException(
-                    messageSource.getMessage("error.updateCancelledRequest", new Object[]{requestId}, locale)
-            );
-        }
+        PagedResponse<GetHelpRequestsDTO> pagedResponse =
+                new PagedResponse<>(requests);
 
-        updateRequestFields(request, requestDTO, locale);
-        request.setLastUpdatedAt(ZonedDateTime.now());
-        Request updatedRequest = requestRepository.save(request);
+        String message = messageSource.getMessage(
+                "success.requestsRetrieved",
+                null,
+                locale
+        );
 
-        logger.info("Updated request with ID: {}", requestId);
-        String message = messageSource.getMessage("success.requestUpdated", new Object[]{requestId}, locale);
-        return SaayamResponse.success(SaayamStatusCode.REQUEST_UPDATED, message, updatedRequest);
+        return SaayamResponse.success(
+                SaayamStatusCode.REQUESTS_RETRIEVED,
+                message,
+                pagedResponse
+        );
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public SaayamResponse<PagedResponse<GetHelpRequestsDTO>> getUserHelpRequests(String userId, int page, int size, Locale locale) {
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "lastUpdatedAt")
+        );
+
+        Page<GetHelpRequestsDTO> requests =
+                requestRepository.findHelpRequestsByUserId(
+                        userId,
+                        RequestStatusEnum.DELETED.getId(),
+                        pageable
+                );
+
+        PagedResponse<GetHelpRequestsDTO> pagedResponse =
+                new PagedResponse<>(requests);
+
+        String message = messageSource.getMessage(
+                "success.requestsRetrieved",
+                null,
+                locale
+        );
+
+        return SaayamResponse.success(
+                SaayamStatusCode.REQUESTS_RETRIEVED,
+                message,
+                pagedResponse
+        );
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SaayamResponse<PagedResponse<AdminRequestDTO>> getAdminRequests(
+            Pageable pageable,
+            Locale locale
+    ) {
+
+        Page<AdminRequestDTO> requests =
+                requestRepository.findAdminRequests(
+                        RequestStatusEnum.DELETED.getId(),
+                        pageable
+                );
+
+        PagedResponse<AdminRequestDTO> pagedResponse =
+                new PagedResponse<>(requests);
+
+        String message = messageSource.getMessage(
+                "success.requestsRetrieved",
+                null,
+                locale
+        );
+
+        return SaayamResponse.success(
+                SaayamStatusCode.REQUESTS_RETRIEVED,
+                message,
+                pagedResponse
+        );
+    }
+
+   @Override
+   @Transactional
+   public SaayamResponse<Request> updateRequest(RequestUpdateDTO requestUpdateDTO, Locale locale) {
+
+        String creatorId = requestUpdateDTO.getCreatorId();
+        String requestId = requestUpdateDTO.getRequestId();
+
+        Request request = findActiveRequest(
+                creatorId,
+                requestId,
+                locale
+        );
+
+        if (request.getRequestStatus().getRequestStatusId()
+                == RequestStatusEnum.CANCELLED.getId()) {
+
+            throw new InvalidRequestException(
+                    messageSource.getMessage(
+                            "error.updateCancelledRequest",
+                            new Object[]{requestId},
+                            locale
+                    )
+            );
+        }
+
+        updateRequestFields(
+                request,
+                requestUpdateDTO,
+                locale
+        );
+
+        updateGuestDetails(
+                requestId,
+                requestUpdateDTO.getGuestDetails()
+        );
+
+        replaceAdditionalInfo(
+                requestId,
+                requestUpdateDTO.getAdditionalFields(),
+                creatorId
+        );
+
+        request.setLastUpdatedAt(ZonedDateTime.now());
+
+        Request updatedRequest =
+                requestRepository.save(request);
+
+        logger.info(
+                "Updated request with ID: {}",
+                requestId
+        );
+
+        String message = messageSource.getMessage(
+                "success.requestUpdated",
+                new Object[]{requestId},
+                locale
+        );
+
+        return SaayamResponse.success(
+                SaayamStatusCode.REQUEST_UPDATED,
+                message,
+                updatedRequest
+        );
+}
+
+    @Override
     @Transactional
-    public SaayamResponse<Void> deleteRequest(String requesterId, String requestId, Locale locale) {
-        Request request = findRequestIncludingDeleted(requesterId, requestId, locale);
+    public SaayamResponse<Void> deleteRequest(String creatorId, String requestId, Locale locale) {
+        Request request = findRequestIncludingDeleted(creatorId, requestId, locale);
 
         if (request.getRequestStatus().getRequestStatusId() != RequestStatusEnum.DELETED.getId()) {
             RequestStatus deletedStatus = getRequestStatus(RequestStatusEnum.DELETED.getId(), locale);
@@ -254,8 +431,8 @@ public class RequestServiceImpl implements RequestService {
 
     @Override
     @Transactional
-    public SaayamResponse<Request> cancelRequest(String requesterId, String requestId, Locale locale) {
-        Request request = findActiveRequest(requesterId, requestId, locale);
+    public SaayamResponse<Request> cancelRequest(String creatorId, String requestId, Locale locale) {
+        Request request = findActiveRequest(creatorId, requestId, locale);
 
         if (request.getRequestStatus().getRequestStatusId() == RequestStatusEnum.CANCELLED.getId()) {
             throw new InvalidRequestException(
@@ -275,8 +452,8 @@ public class RequestServiceImpl implements RequestService {
 
     @Override
     @Transactional
-    public SaayamResponse<Request> resumeRequest(String requesterId, String requestId, Locale locale) {
-        Request request = findActiveRequest(requesterId, requestId, locale);
+    public SaayamResponse<Request> resumeRequest(String creatorId, String requestId, Locale locale) {
+        Request request = findActiveRequest(creatorId, requestId, locale);
 
         if (request.getRequestStatus().getRequestStatusId() != RequestStatusEnum.CANCELLED.getId()) {
             throw new InvalidRequestException(
@@ -352,22 +529,23 @@ public class RequestServiceImpl implements RequestService {
                 ));
     }
 
-    private Request findActiveRequest(String requesterId, String requestId, Locale locale) {
-        return requestRepository.findActiveByRequestIdAndRequesterId(requestId, requesterId, RequestStatusEnum.DELETED.getId())
+    private Request findActiveRequest(String creatorId, String requestId, Locale locale) {
+        return requestRepository.findActiveByRequestIdAndCreatorId(requestId, creatorId, RequestStatusEnum.DELETED.getId())
                 .orElseThrow(() -> new NotFoundException(
-                        messageSource.getMessage("error.requestNotFound", new Object[]{requestId, requesterId}, locale)
+                        messageSource.getMessage("error.requestNotFound", new Object[]{requestId, creatorId}, locale)
                 ));
     }
 
-    private Request findRequestIncludingDeleted(String requesterId, String requestId, Locale locale) {
-        return requestRepository.findByRequestIdAndRequesterIdIncludingDeleted(requestId, requesterId)
+    private Request findRequestIncludingDeleted(String creatorId, String requestId, Locale locale) {
+        return requestRepository.findByRequestIdAndCreatorIdIncludingDeleted(requestId, creatorId)
                 .orElseThrow(() -> new NotFoundException(
-                        messageSource.getMessage("error.requestNotFound", new Object[]{requestId, requesterId}, locale)
+                        messageSource.getMessage("error.requestNotFound", new Object[]{requestId, creatorId}, locale)
                 ));
     }
 
     private Request buildRequest(
-            String requesterId,
+            String creatorId,
+            String beneficiaryId,
             RequestDTO requestDTO,
             RequestPriority requestPriority,
             RequestType requestType,
@@ -378,7 +556,8 @@ public class RequestServiceImpl implements RequestService {
     ) {
         ZonedDateTime now = ZonedDateTime.now();
         return Request.builder()
-                .requesterId(requesterId)
+                .creatorId(creatorId)
+                .beneficiaryId(beneficiaryId)
                 .requestStatus(requestStatus)
                 .requestPriority(requestPriority)
                 .requestType(requestType)
@@ -398,33 +577,153 @@ public class RequestServiceImpl implements RequestService {
                 .build();
     }
 
-    private void updateRequestFields(Request request, RequestDTO requestDTO, Locale locale) {
-        Optional.ofNullable(requestDTO.getRequestPriority())
-                .ifPresent(priority -> request.setRequestPriority(getRequestPriority(priority.getRequestPriorityId(), locale)));
+    private void updateRequestFields(Request request, RequestUpdateDTO requestUpdateDTO, Locale locale) {
+        Optional.ofNullable(requestUpdateDTO.getRequestStatus())
+            .ifPresent(status ->
+                    request.setRequestStatus(
+                            getRequestStatus(
+                                    status.getRequestStatusId(),
+                                    locale
+                            )
+                    )
+            );
 
-        Optional.ofNullable(requestDTO.getRequestType())
-                .ifPresent(type -> request.setRequestType(getRequestType(type.getRequestTypeId(), locale)));
+        Optional.ofNullable(requestUpdateDTO.getRequestPriority())
+                .ifPresent(priority ->
+                        request.setRequestPriority(
+                                getRequestPriority(
+                                        priority.getRequestPriorityId(),
+                                        locale
+                                )
+                        )
+                );
 
-        Optional.ofNullable(requestDTO.getHelpCategory())
-                .ifPresent(cat -> request.setHelpCategory(getHelpCategory(cat.getCatId(), locale)));
+        Optional.ofNullable(requestUpdateDTO.getRequestType())
+                .ifPresent(type ->
+                        request.setRequestType(
+                                getRequestType(
+                                        type.getRequestTypeId(),
+                                        locale
+                                )
+                        )
+                );
 
-        Optional.ofNullable(requestDTO.getRequestFor())
-                .ifPresent(requestFor -> request.setRequestFor(getRequestFor(requestFor.getRequestForId(), locale)));
+        Optional.ofNullable(requestUpdateDTO.getHelpCategory())
+                .ifPresent(cat ->
+                        request.setHelpCategory(
+                                getHelpCategory(
+                                        cat.getCatId(),
+                                        locale
+                                )
+                        )
+                );
 
-        Optional.ofNullable(requestDTO.getRequestLocation()).ifPresent(request::setRequestLocation);
-        Optional.ofNullable(requestDTO.getRequestSubject()).ifPresent(request::setRequestSubject);
+        Optional.ofNullable(requestUpdateDTO.getRequestFor())
+                .ifPresent(requestFor ->
+                        request.setRequestFor(
+                                getRequestFor(
+                                        requestFor.getRequestForId(),
+                                        locale
+                                )
+                        )
+                );
 
-        Optional.ofNullable(requestDTO.getRequestDescription()).ifPresent(request::setRequestDescription);
-        Optional.ofNullable(requestDTO.getIsCalamity()).ifPresent(request::setIsCalamity);
-        Optional.ofNullable(requestDTO.getRequestDocumentLink()).ifPresent(request::setRequestDocumentLink);
+        Optional.ofNullable(requestUpdateDTO.getRequestLocation())
+                .ifPresent(request::setRequestLocation);
 
-        Optional.ofNullable(requestDTO.getAudioRequestDescription()).ifPresent(request::setAudioRequestDescription);
+        Optional.ofNullable(requestUpdateDTO.getRequestSubject())
+                .ifPresent(request::setRequestSubject);
 
-        Optional.ofNullable(requestDTO.getIsLeadVolunteer())
-                .ifPresent(volId -> request.setIsLeadVolunteer(getIsLeadVolunteer(volId, locale)));
+        Optional.ofNullable(requestUpdateDTO.getRequestDescription())
+                .ifPresent(request::setRequestDescription);
 
-        Optional.ofNullable(requestDTO.getServicedAt()).ifPresent(request::setServicedAt);
+        Optional.ofNullable(requestUpdateDTO.getAudioRequestDescription())
+                .ifPresent(request::setAudioRequestDescription);
+
+        Optional.ofNullable(requestUpdateDTO.getIsCalamity())
+                .ifPresent(request::setIsCalamity);
+
+        Optional.ofNullable(requestUpdateDTO.getRequestDocumentLink())
+                .ifPresent(request::setRequestDocumentLink);
+
+        Optional.ofNullable(requestUpdateDTO.getIsLeadVolunteer())
+                .ifPresent(volId ->
+                        request.setIsLeadVolunteer(
+                                getIsLeadVolunteer(volId, locale)
+                        )
+                );
+
+        Optional.ofNullable(requestUpdateDTO.getServicedAt())
+                .ifPresent(request::setServicedAt);
     }
+
+    private void updateGuestDetails(String requestId, GuestDetailsDTO guestDetailsDTO) {
+
+        if (guestDetailsDTO == null) {
+            return;
+        }
+
+        RequestGuestDetails guestDetails =
+                requestGuestDetailsRepository
+                        .findById(requestId)
+                        .orElse(
+                                RequestGuestDetails.builder()
+                                        .requestId(requestId)
+                                        .build()
+                        );
+
+        guestDetails.setReqFname(
+                guestDetailsDTO.getReqFname()
+        );
+
+        guestDetails.setReqLname(
+                guestDetailsDTO.getReqLname()
+        );
+
+        guestDetails.setReqEmail(
+                guestDetailsDTO.getReqEmail()
+        );
+
+        guestDetails.setReqPhone(
+                guestDetailsDTO.getReqPhone()
+        );
+
+        guestDetails.setReqAge(
+                guestDetailsDTO.getReqAge()
+        );
+
+        guestDetails.setReqGender(
+                guestDetailsDTO.getReqGender()
+        );
+
+        guestDetails.setReqPrefLang(
+                guestDetailsDTO.getReqPrefLang()
+        );
+
+        requestGuestDetailsRepository.save(guestDetails);
+}
+
+    private void replaceAdditionalInfo(String requestId, Map<String, Object> additionalFields, String creatorId) {
+
+        if (additionalFields == null) {
+            return;
+        }
+
+        reqAddInfoRepository.deleteByReqId(requestId);
+
+        if (additionalFields.isEmpty()) {
+            return;
+        }
+
+        String userTimezone =
+                getUserTimezone(creatorId);
+
+        insertAdditionalInfo(
+                requestId,
+                additionalFields,
+                userTimezone
+        );
+}
 
     private void insertAdditionalInfo(String reqId, Map<String, Object> additionalFields,
                                       String userTimezone) {

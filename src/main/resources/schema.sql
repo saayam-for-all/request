@@ -7,7 +7,7 @@ CREATE SEQUENCE IF NOT EXISTS request_id_seq
     CACHE 1;
 
 -- Create request_status table
-CREATE TABLE IF NOT EXISTS request_status (
+CREATE TABLE IF NOT EXISTS request_statuses (
                                               request_status_id SERIAL PRIMARY KEY,
                                               request_status VARCHAR(255) NOT NULL,
                                               request_status_desc VARCHAR(255),
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS request_status (
 );
 
 -- Create request_type table
-CREATE TABLE IF NOT EXISTS request_type (
+CREATE TABLE IF NOT EXISTS request_types (
                                             request_type_id SERIAL PRIMARY KEY,
                                             request_type VARCHAR(255) NOT NULL,
                                             request_type_desc VARCHAR(255),
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS request_type (
 );
 
 -- Create request_category table
-CREATE TABLE IF NOT EXISTS request_category (
+CREATE TABLE IF NOT EXISTS request_categories (
                                                 request_category_id SERIAL PRIMARY KEY,
                                                 request_category VARCHAR(255) NOT NULL,
                                                 request_category_desc VARCHAR(255),
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS request_category (
 );
 
 -- Create request_priority table
-CREATE TABLE IF NOT EXISTS request_priority (
+CREATE TABLE IF NOT EXISTS request_priorities (
                                                 request_priority_id SERIAL PRIMARY KEY,
                                                 request_priority VARCHAR(255) NOT NULL,
                                                 request_priority_desc VARCHAR(255),
@@ -52,9 +52,10 @@ CREATE TABLE IF NOT EXISTS request_for (
 );
 
 -- Create request table
-CREATE TABLE IF NOT EXISTS request (
+CREATE TABLE IF NOT EXISTS requests (
                                        request_id VARCHAR(255) PRIMARY KEY,
-                                       request_user_id VARCHAR(255) NOT NULL,
+                                       creator_id VARCHAR(255) NOT NULL,
+                                       beneficiary_id VARCHAR(255) NOT NULL,
                                        request_status_id INT NOT NULL,
                                        request_priority_id INT NOT NULL,
                                        request_type_id INT NOT NULL,
@@ -67,12 +68,12 @@ CREATE TABLE IF NOT EXISTS request (
                                        submission_date TIMESTAMP,
                                        lead_volunteer_user_id INT,
                                        serviced_date TIMESTAMP,
-                                       last_update_date TIMESTAMP,
+                                       last_updated_at TIMESTAMP,
                                        CONSTRAINT request_id_unique UNIQUE (request_id),
-                                       CONSTRAINT fk_request_status_id FOREIGN KEY (request_status_id) REFERENCES request_status(request_status_id),
-                                       CONSTRAINT fk_request_priority_id FOREIGN KEY (request_priority_id) REFERENCES request_priority (request_priority_id),
-                                       CONSTRAINT fk_request_type_id FOREIGN KEY (request_type_id) REFERENCES request_type(request_type_id),
-                                       CONSTRAINT fk_request_category_id FOREIGN KEY (request_category_id) REFERENCES request_category (request_category_id),
+                                       CONSTRAINT fk_request_status_id FOREIGN KEY (request_status_id) REFERENCES request_statuses(request_status_id),
+                                       CONSTRAINT fk_request_priority_id FOREIGN KEY (request_priority_id) REFERENCES request_priorities (request_priority_id),
+                                       CONSTRAINT fk_request_type_id FOREIGN KEY (request_type_id) REFERENCES request_types(request_type_id),
+                                       CONSTRAINT fk_request_category_id FOREIGN KEY (request_category_id) REFERENCES request_categories (request_category_id),
                                        CONSTRAINT fk_request_for_id FOREIGN KEY (request_for_id) REFERENCES request_for (request_for_id)
 );
 
@@ -98,7 +99,7 @@ DO '
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = ''before_insert_requests'') THEN
         CREATE TRIGGER before_insert_requests
-            BEFORE INSERT ON request
+            BEFORE INSERT ON requests
             FOR EACH ROW
         EXECUTE FUNCTION generate_request_id();
     END IF;

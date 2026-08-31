@@ -136,6 +136,12 @@
             <version>2.25.66</version>
         </dependency>
 
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>lambda</artifactId>
+            <version>2.25.66</version>
+        </dependency>
+
     </dependencies>
 
     <build>
@@ -200,11 +206,7 @@
                     </execution>
                 </executions>
             </plugin>
-<<<<<<< Updated upstream
-            
-=======
 
->>>>>>> Stashed changes
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -222,15 +224,14 @@
                     </annotationProcessorPaths>
                 </configuration>
             </plugin>
-<<<<<<< Updated upstream
-=======
+
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <skipTests>true</skipTests>
                 </configuration>
             </plugin>
->>>>>>> Stashed changes
+
         </plugins>
     </build>
 </project>

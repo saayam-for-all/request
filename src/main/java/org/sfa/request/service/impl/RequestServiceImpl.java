@@ -30,6 +30,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.sfa.request.dto.RequestCommentDTO;
 
 
 import java.io.File;
@@ -95,6 +96,7 @@ public class RequestServiceImpl implements RequestService {
     private final RequestTypeRepository requestTypeRepository;
     private final HelpCategoryRepository helpCategoryRepository;
     private final RequestForRepository requestForRepository;
+    private final RequestCommentRepository requestCommentRepository;
     private final MessageSource messageSource;
     private final ReqAddInfoRepository reqAddInfoRepository;
     private final UserRepository userRepository;
@@ -1135,4 +1137,115 @@ public class RequestServiceImpl implements RequestService {
         requestRepository.save(request);
         return responseUrls;
     }
+
+
+
+
+    @Override
+    @Transactional
+    public RequestCommentDTO addComment(
+            String requesterId,
+            String requestId,
+            RequestCommentDTO requestCommentDTO,
+            Locale locale
+    ) {
+        findActiveRequest(requesterId, requestId, locale);
+        validateComment(requestCommentDTO);
+
+        LocalDateTime now = LocalDateTime.now();
+
+        RequestComment comment = RequestComment.builder()
+                .requestId(requestId)
+                .comment(requestCommentDTO.getComment().trim())
+                .createdBy(resolveCommentCreator(requesterId, requestCommentDTO.getCreatedBy()))
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+
+        return mapToCommentDTO(requestCommentRepository.save(comment));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RequestCommentDTO> getComments(
+            String requesterId,
+            String requestId,
+            Locale locale
+    ) {
+        findActiveRequest(requesterId, requestId, locale);
+
+        return requestCommentRepository
+                .findByRequestIdOrderByCreatedAtAscIdAsc(requestId)
+                .stream()
+                .map(this::mapToCommentDTO)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public RequestCommentDTO updateComment(
+            String requesterId,
+            Long id,
+            RequestCommentDTO requestCommentDTO,
+            Locale locale
+    ) {
+        validateComment(requestCommentDTO);
+
+        RequestComment comment = findComment(id);
+        findActiveRequest(requesterId, comment.getRequestId(), locale);
+
+        comment.setComment(requestCommentDTO.getComment().trim());
+        comment.setUpdatedAt(LocalDateTime.now());
+
+        return mapToCommentDTO(requestCommentRepository.save(comment));
+    }
+
+    @Override
+    @Transactional
+    public void deleteComment(
+            String requesterId,
+            Long id,
+            Locale locale
+    ) {
+        RequestComment comment = findComment(id);
+        findActiveRequest(requesterId, comment.getRequestId(), locale);
+
+        requestCommentRepository.delete(comment);
+    }
+
+    private RequestComment findComment(Long id) {
+        return requestCommentRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Comment not found"));
+    }
+
+    private void validateComment(RequestCommentDTO requestCommentDTO) {
+        if (requestCommentDTO == null
+                || requestCommentDTO.getComment() == null
+                || requestCommentDTO.getComment().isBlank()) {
+            throw new InvalidRequestException("Comment cannot be blank");
+        }
+    }
+
+    private String resolveCommentCreator(String requesterId, String createdBy) {
+        if (createdBy == null || createdBy.isBlank()) {
+            return requesterId;
+        }
+
+        return createdBy.trim();
+    }
+
+    private RequestCommentDTO mapToCommentDTO(RequestComment comment) {
+        return RequestCommentDTO.builder()
+                .id(comment.getId())
+                .requestId(comment.getRequestId())
+                .comment(comment.getComment())
+                .createdBy(comment.getCreatedBy())
+                .createdAt(comment.getCreatedAt())
+                .updatedAt(comment.getUpdatedAt())
+                .build();
+    }
+
+
 }
+
+

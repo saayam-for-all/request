@@ -29,6 +29,9 @@ import org.springframework.web.servlet.LocaleResolver;
 import org.sfa.request.service.api.SQSService;
 
 import jakarta.servlet.http.HttpServletRequest;
+import org.sfa.request.dto.RequestCommentDTO;
+
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -223,6 +226,85 @@ public class RequestController {
         Locale locale = localeResolver.resolveLocale(request);
         SaayamResponse<Request> response = requestService.resumeRequest(requesterId, requestId, locale);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/{requestId}/comments")
+    public ResponseEntity<SaayamResponse<RequestCommentDTO>> addComment(
+            @PathVariable @NotNull String requesterId,
+            @PathVariable @NotNull String requestId,
+            @RequestBody @Valid RequestCommentDTO requestCommentDTO,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+        RequestCommentDTO response = requestService.addComment(requesterId, requestId, requestCommentDTO, locale);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                SaayamResponse.success(
+                        SaayamStatusCode.REQUEST_CREATED,
+                        "Comment added successfully",
+                        response
+                )
+        );
+    }
+
+    @GetMapping("/{requestId}/comments")
+    public ResponseEntity<SaayamResponse<List<RequestCommentDTO>>> getComments(
+            @PathVariable @NotNull String requesterId,
+            @PathVariable @NotNull String requestId,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+        List<RequestCommentDTO> response = requestService.getComments(requesterId, requestId, locale);
+
+        return ResponseEntity.ok(
+                SaayamResponse.success(
+                        SaayamStatusCode.SUCCESS,
+                        "Comments fetched successfully",
+                        response
+                )
+        );
+    }
+
+    @PutMapping("/comments/{id}")
+    public ResponseEntity<SaayamResponse<RequestCommentDTO>> updateComment(
+            @PathVariable @NotNull String requesterId,
+            @PathVariable @NotNull Long id,
+            @RequestBody @Valid RequestCommentDTO requestCommentDTO,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+        RequestCommentDTO response = requestService.updateComment(
+                requesterId,
+                id,
+                requestCommentDTO,
+                locale
+        );
+
+        return ResponseEntity.ok(
+                SaayamResponse.success(
+                        SaayamStatusCode.SUCCESS,
+                        "Comment updated successfully",
+                        response
+                )
+        );
+    }
+
+    @DeleteMapping("/comments/{id}")
+    public ResponseEntity<SaayamResponse<String>> deleteComment(
+            @PathVariable @NotNull String requesterId,
+            @PathVariable @NotNull Long id,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+        requestService.deleteComment(requesterId, id, locale);
+
+        return ResponseEntity.ok(
+                SaayamResponse.success(
+                        SaayamStatusCode.SUCCESS,
+                        "Comment deleted successfully",
+                        "Deleted successfully"
+                )
+        );
     }
 
 //    @PostMapping("/{requestId}/sendToQueue")

@@ -2,6 +2,7 @@ package org.sfa.request.service.impl;
 
 import org.sfa.request.constant.SaayamStatusCode;
 import org.sfa.request.response.PagedResponse;
+import org.sfa.request.dto.RequestCommentDTO;
 import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.exception.types.ConflictException;
 import org.sfa.request.exception.types.EnumUnspecifiedException;
@@ -24,6 +25,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZonedDateTime;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -73,6 +76,7 @@ public class RequestServiceImpl implements RequestService {
     private final MessageSource messageSource;
     private final RequestIsLeadVolRepository requestIsLeadVolRepository;
     private final HelpCategoryRepository helpCategoryRepository;
+    private final RequestCommentRepository requestCommentRepository;
 
     @Override
     @Transactional
@@ -283,6 +287,96 @@ public class RequestServiceImpl implements RequestService {
                 .orElseThrow(() -> new NotFoundException(
                         messageSource.getMessage("error.requestNotFound", new Object[]{requestId, requesterId}, locale)
                 ));
+    }
+
+    @Override
+    @Transactional
+    public RequestCommentDTO addComment(
+            String requesterId,
+            String requestId,
+            RequestCommentDTO requestCommentDTO,
+            Locale locale
+    ) {
+        findActiveRequest(requesterId, requestId, locale);
+        validateComment(requestCommentDTO);
+
+        LocalDateTime now = LocalDateTime.now();
+        RequestComment comment = RequestComment.builder()
+                .requestId(requestId)
+                .comment(requestCommentDTO.getComment().trim())
+                .createdBy(resolveCommentCreator(requesterId, requestCommentDTO.getCreatedBy()))
+                .createdAt(now)
+                .updatedAt(now)
+                .build();
+
+        return mapToCommentDTO(requestCommentRepository.save(comment));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<RequestCommentDTO> getComments(String requesterId, String requestId, Locale locale) {
+        findActiveRequest(requesterId, requestId, locale);
+        return requestCommentRepository.findByRequestIdOrderByCreatedAtAscIdAsc(requestId)
+                .stream()
+                .map(this::mapToCommentDTO)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public RequestCommentDTO updateComment(
+            String requesterId,
+            Long id,
+            RequestCommentDTO requestCommentDTO,
+            Locale locale
+    ) {
+        validateComment(requestCommentDTO);
+
+        RequestComment comment = findComment(id);
+        findActiveRequest(requesterId, comment.getRequestId(), locale);
+        comment.setComment(requestCommentDTO.getComment().trim());
+        comment.setUpdatedAt(LocalDateTime.now());
+
+        return mapToCommentDTO(requestCommentRepository.save(comment));
+    }
+
+    @Override
+    @Transactional
+    public void deleteComment(String requesterId, Long id, Locale locale) {
+        RequestComment comment = findComment(id);
+        findActiveRequest(requesterId, comment.getRequestId(), locale);
+        requestCommentRepository.delete(comment);
+    }
+
+    private RequestComment findComment(Long id) {
+        return requestCommentRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("Comment not found"));
+    }
+
+    private void validateComment(RequestCommentDTO requestCommentDTO) {
+        if (requestCommentDTO == null
+                || requestCommentDTO.getComment() == null
+                || requestCommentDTO.getComment().isBlank()) {
+            throw new InvalidRequestException("Comment cannot be blank");
+        }
+    }
+
+    private String resolveCommentCreator(String requesterId, String createdBy) {
+        if (createdBy == null || createdBy.isBlank()) {
+            return requesterId;
+        }
+        return createdBy.trim();
+    }
+
+    private RequestCommentDTO mapToCommentDTO(RequestComment comment) {
+        return RequestCommentDTO.builder()
+                .id(comment.getId())
+                .requestId(comment.getRequestId())
+                .comment(comment.getComment())
+                .createdBy(comment.getCreatedBy())
+                .createdAt(comment.getCreatedAt())
+                .updatedAt(comment.getUpdatedAt())
+                .build();
     }
     
     private RequestIsLeadVol getRequestIsLeadVol(Integer id, Locale locale) {

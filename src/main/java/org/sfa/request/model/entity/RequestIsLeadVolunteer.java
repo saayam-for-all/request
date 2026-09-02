@@ -22,7 +22,7 @@ public class RequestIsLeadVolunteer {
     @Column(name = "req_islead_desc")
     private String reqIsleadDesc;
 
-    @Column(name = "last_updated_date")
+    @Column(name = "last_updated_at")
     private LocalDateTime lastUpdatedDate;
 
 }

@@ -13,7 +13,7 @@ import java.util.Set;
 @AllArgsConstructor
 @Entity(name = "RequestPriority")
 @Table(
-        name = "request_priority",
+        name = "request_priorities",
         schema = "virginia_dev_saayam_rdbms",
         uniqueConstraints = {
                 @UniqueConstraint(name = "request_priority_id_unique", columnNames = "request_priority_id")
@@ -31,7 +31,7 @@ public class RequestPriority {
     @Column(name = "req_priority_desc", columnDefinition = "VARCHAR(255)")
     private String description;
 
-    @Column(name = "last_updated_date", columnDefinition = "TIMESTAMP")
+    @Column(name = "last_updated_at", columnDefinition = "TIMESTAMP")
     private ZonedDateTime lastUpdatedAt;
 
     @JsonIgnore

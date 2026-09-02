@@ -30,7 +30,7 @@ import java.time.ZonedDateTime;
 })
 @Entity
 @Table(
-        name = "request",
+        name = "requests",
         schema = "virginia_dev_saayam_rdbms",
         uniqueConstraints = {
                 @UniqueConstraint(name = "request_id_unique", columnNames = "req_id")
@@ -43,7 +43,7 @@ public class Request implements Serializable {
     @Column(name = "req_id", updatable = false, nullable = false)
     private String requestId;
 
-    @Column(name = "req_user_id", nullable = false, columnDefinition = "VARCHAR(255)")
+    @Column(name = "creator_id", nullable = false, columnDefinition = "VARCHAR(255)")
     private String requesterId;
 
     @ManyToOne
@@ -124,6 +124,6 @@ public class Request implements Serializable {
     @Column(name = "serviced_date", columnDefinition = "TIMESTAMP")
     private ZonedDateTime servicedAt;
 
-    @Column(name = "last_update_date", columnDefinition = "TIMESTAMP")
+    @Column(name = "last_updated_at", columnDefinition = "TIMESTAMP")
     private ZonedDateTime lastUpdatedAt;
 }

@@ -43,6 +43,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
+import org.sfa.request.dto.FileAttachmentDTO;
 /**
  * ClassName: RequestServiceImpl
  * Package: org.sfa.request.service.impl
@@ -167,6 +168,13 @@ public class RequestServiceImpl implements RequestService {
                     insertAdditionalInfo(savedRequest.getRequestId(),
                             requestDTO.getAdditionalFields(),
                             userTimezone);  // ← add this
+                    return null;
+                });
+            }
+
+            if (requestDTO.getFiles() != null && !requestDTO.getFiles().isEmpty()) {
+                withRetry("uploadAttachmentsOnCreate", 3, () -> {
+                    attachFilesToRequest(savedRequest, Collections.emptyList(), 0, requestDTO.getFiles(), locale);
                     return null;
                 });
             }
@@ -783,19 +791,49 @@ public class RequestServiceImpl implements RequestService {
         List<String> validExisting = existing.stream()
                 .filter(path -> doesFileExist(getKey(path)))
                 .toList();
-        if (validExisting.size() + files.size() > 5) {
+        List<FileAttachmentDTO> fileDTOs = files.stream()
+                .map(this::toFileAttachmentDTO)
+                .toList();
+
+        return attachFilesToRequest(request, existing, validExisting.size(), fileDTOs, locale);
+    }
+
+    private FileAttachmentDTO toFileAttachmentDTO(Map<String, String> file) {
+        return new FileAttachmentDTO(
+                file.get("fileName"),
+                file.get("base64"),
+                file.get("contentType")
+        );
+    }
+
+    private List<String> attachFilesToRequest(
+            Request request,
+            List<String> existingPaths,
+            int existingValidCount,
+            List<FileAttachmentDTO> files,
+            Locale locale
+    ) {
+        if (files == null || files.isEmpty()) {
+            throw new InvalidRequestException("No files provided");
+        }
+        if (existingValidCount + files.size() > 5) {
             throw new InvalidRequestException("Maximum 5 attachments allowed");
         }
         List<String> allowed = Arrays.stream(allowedMimeCsv.split(","))
                 .map(String::trim)
                 .toList();
-        List<String> newPaths = new ArrayList<>();
+
+        List<String> allPaths = new ArrayList<>(existingPaths);
         List<String> responseUrls = new ArrayList<>();
-        for (Map<String, String> file : files) {
-            String fileNameRaw = file.get("fileName");
-            String base64 = file.get("base64");
-            String contentType = file.get("contentType");
-            if (fileNameRaw == null || base64 == null || contentType == null) {
+        String requestId = request.getRequestId();
+
+        for (FileAttachmentDTO file : files) {
+            String fileNameRaw = file.getFileName();
+            String base64 = file.getBase64();
+            String contentType = file.getContentType();
+            if (fileNameRaw == null || fileNameRaw.isBlank()
+                    || base64 == null || base64.isBlank()
+                    || contentType == null || contentType.isBlank()) {
                 throw new InvalidRequestException("Invalid file payload");
             }
             byte[] fileBytes;
@@ -828,11 +866,11 @@ public class RequestServiceImpl implements RequestService {
                 throw new RuntimeException("Failed to upload file", e);
             }
             String s3Path = "s3://" + bucket + "/" + key;
-            newPaths.add(s3Path);
+            allPaths.add(s3Path);
             responseUrls.add(buildFileUrlFromS3Path(s3Path));
         }
-        existing.addAll(newPaths);
-        request.setRequestDocumentLink(toJson(existing));
+
+        request.setRequestDocumentLink(toJson(allPaths));
         requestRepository.save(request);
         return responseUrls;
     }

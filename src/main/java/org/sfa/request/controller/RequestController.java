@@ -1,6 +1,5 @@
 package org.sfa.request.controller;
 
-import org.sfa.request.constant.SaayamStatusCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -9,13 +8,15 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.sfa.request.response.PagedResponse;
-import org.sfa.request.model.entity.Request;
-import org.sfa.request.dto.RequestDTO;
-import org.sfa.request.service.api.RequestService;
-import org.sfa.request.response.SaayamResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
-import org.sfa.request.utils.JsonConverter;
+import org.sfa.request.dto.RequestDTO;
+import org.sfa.request.model.entity.Request;
+import org.sfa.request.response.PagedResponse;
+import org.sfa.request.response.SaayamResponse;
+import org.sfa.request.service.api.RequestService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.MessageSource;
 import org.springframework.data.domain.Pageable;
@@ -23,12 +24,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 import org.springframework.web.servlet.LocaleResolver;
 import org.sfa.request.service.api.SQSService;
 
-import jakarta.servlet.http.HttpServletRequest;
 import java.util.Locale;
 
 /**
@@ -46,8 +44,10 @@ import java.util.Locale;
 @RequiredArgsConstructor
 @Tag(name = "Request", description = "Request management APIs")
 public class RequestController {
+
     @Autowired
     private RequestService requestService;
+
     @Autowired
     private LocaleResolver localeResolver;
 

@@ -109,17 +109,32 @@
             <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
-<!--        <dependency>-->
-<!--            <groupId>software.amazon.awssdk</groupId>-->
-<!--            <artifactId>sqs</artifactId>-->
-<!--            <version>2.27.5</version>-->
-<!--        </dependency>-->
+        <!-- AWS SDK v2: SQS producer, SNS (SMS/push), SES (email) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sqs</artifactId>
+            <version>2.27.5</version>
+        </dependency>
 
-<!--        <dependency>-->
-<!--            <groupId>io.awspring.cloud</groupId>-->
-<!--            <artifactId>spring-cloud-aws-sqs</artifactId>-->
-<!--            <version>3.2.0-M1</version>-->
-<!--        </dependency>-->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>sns</artifactId>
+            <version>2.27.5</version>
+        </dependency>
+
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>ses</artifactId>
+            <version>2.27.5</version>
+        </dependency>
+
+        <!-- GA release. PR #66 used 3.2.0-M1, a milestone that is not on Maven
+             Central and would fail a clean build with no milestone repo declared. -->
+        <dependency>
+            <groupId>io.awspring.cloud</groupId>
+            <artifactId>spring-cloud-aws-sqs</artifactId>
+            <version>3.2.1</version>
+        </dependency>
 <dependency>
     <groupId>org.assertj</groupId>
     <artifactId>assertj-core</artifactId>

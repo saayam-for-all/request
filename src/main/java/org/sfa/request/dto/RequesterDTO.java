@@ -12,4 +12,8 @@ public class RequesterDTO {
 
     @NotBlank(message = "Requester ID cannot be blank")
     private String requesterId;
+
+    private String requestId;
+
+    private Long commentId;
 }

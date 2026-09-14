@@ -14,6 +14,10 @@ public class CommentRequestDTO {
     @NotBlank(message = "Requester ID cannot be blank")
     private String requesterId;
 
+    private String requestId;
+
+    private Long commentId;
+
     @NotBlank(message = "Comment cannot be blank")
     @Size(max = 2000, message = "Comment must not exceed 2000 characters")
     private String comment;

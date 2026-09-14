@@ -18,17 +18,15 @@ import java.util.List;
 import java.util.Locale;
 
 @RestController
-@RequestMapping("/api/v1.0.0/requests")
+@RequestMapping("/api/v1.0.0/requests/comments")
 @RequiredArgsConstructor
 public class RequestCommentController {
 
     private final RequestService requestService;
     private final LocaleResolver localeResolver;
 
-
-    @PostMapping("/{requestId}/comments")
+    @PostMapping
     public ResponseEntity<SaayamResponse<RequestCommentDTO>> addComment(
-            @PathVariable String requestId,
             @RequestBody @Valid CommentRequestDTO body,
             HttpServletRequest request) {
 
@@ -40,7 +38,7 @@ public class RequestCommentController {
 
         RequestCommentDTO response = requestService.addComment(
                 body.getRequesterId(),
-                requestId,
+                body.getRequestId(),
                 commentDTO,
                 locale
         );
@@ -54,12 +52,8 @@ public class RequestCommentController {
         );
     }
 
-
-
-
-    @PostMapping("/{requestId}/comments/list")
+    @PostMapping("/list")
     public ResponseEntity<SaayamResponse<List<RequestCommentDTO>>> getComments(
-            @PathVariable String requestId,
             @RequestBody @Valid RequesterDTO body,
             HttpServletRequest request) {
 
@@ -67,7 +61,7 @@ public class RequestCommentController {
 
         List<RequestCommentDTO> response = requestService.getComments(
                 body.getRequesterId(),
-                requestId,
+                body.getRequestId(),
                 locale
         );
 
@@ -80,12 +74,8 @@ public class RequestCommentController {
         );
     }
 
-
-
-
-    @PutMapping("/comments/{id}")
+    @PutMapping
     public ResponseEntity<SaayamResponse<RequestCommentDTO>> updateComment(
-            @PathVariable Long id,
             @RequestBody @Valid CommentRequestDTO body,
             HttpServletRequest request) {
 
@@ -97,7 +87,7 @@ public class RequestCommentController {
 
         RequestCommentDTO response = requestService.updateComment(
                 body.getRequesterId(),
-                id,
+                body.getCommentId(),
                 commentDTO,
                 locale
         );
@@ -111,12 +101,8 @@ public class RequestCommentController {
         );
     }
 
-
-
-
-    @DeleteMapping("/comments/{id}")
+    @DeleteMapping
     public ResponseEntity<SaayamResponse<Void>> deleteComment(
-            @PathVariable Long id,
             @RequestBody @Valid RequesterDTO body,
             HttpServletRequest request) {
 
@@ -124,7 +110,7 @@ public class RequestCommentController {
 
         requestService.deleteComment(
                 body.getRequesterId(),
-                id,
+                body.getCommentId(),
                 locale
         );
 
@@ -136,5 +122,4 @@ public class RequestCommentController {
                 )
         );
     }
-
 }

@@ -67,4 +67,8 @@ public class RequestDTO {
 
     @JsonProperty("additionalFields")
     private Map<String, Object> additionalFields;
+
+    @Valid
+    @Size(max = 5, message = "Maximum 5 attachments allowed")
+    private List<FileAttachmentDTO> files;
 }

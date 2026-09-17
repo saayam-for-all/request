@@ -8,8 +8,10 @@ VALUES
     (4, 'COMPLETED', 'Request has been completed', now()),
     (5, 'CANCELLED', 'Request has been cancelled', now()),
     (6, 'DELETED', 'Request has been deleted', now()),
-    (7, 'RATED_BY_REQUESTER', 'Request has been rated by requester', now()),
-    (8, 'RATED_BY_VOLUNTEER', 'Request has been rated by volunteer', now())
+    (7, 'RATED_BY_REQUESTER', 'Legacy compatibility value; requester ratings are independent records', now()),
+    (8, 'RATED_BY_VOLUNTEER', 'Legacy compatibility value; volunteer ratings are independent records', now()),
+    (9, 'VOLUNTEER_NOT_FOUND', 'Volunteer matching attempts were exhausted', now()),
+    (10, 'REASSIGNMENT_REQUESTED', 'The current volunteer assignment must be reconsidered', now())
 ON CONFLICT (request_status_id) DO NOTHING;
 
 -- Insert initial data into request_priority table

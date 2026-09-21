@@ -1,14 +1,16 @@
 package org.sfa.request.service.api;
 
-import org.sfa.request.response.PagedResponse;
-import org.sfa.request.model.entity.Request;
-import org.sfa.request.dto.RequestDTO;
-import org.sfa.request.response.SaayamResponse;
-import org.sfa.request.dto.GetHelpRequestsDTO;
-import org.springframework.data.domain.Pageable;
-import org.sfa.request.dto.RequestUpdateDTO;
 import org.sfa.request.dto.AdminRequestDTO;
+import org.sfa.request.dto.GetHelpRequestsDTO;
+import org.sfa.request.dto.RequestCommentDTO;
+import org.sfa.request.dto.RequestDTO;
+import org.sfa.request.dto.RequestUpdateDTO;
+import org.sfa.request.model.entity.Request;
+import org.sfa.request.response.PagedResponse;
+import org.sfa.request.response.SaayamResponse;
+import org.springframework.data.domain.Pageable;
 
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -40,34 +42,88 @@ import java.util.Locale;
  */
 public interface RequestService {
 
-    SaayamResponse<Request> createRequest(String requesterId, RequestDTO requestDTO, Locale locale);
+    SaayamResponse<Request> createRequest(
+            String requesterId,
+            RequestDTO requestDTO,
+            Locale locale
+    );
 
-    SaayamResponse<Request> getRequestById(String requesterId, String requestId, Locale locale);
+    SaayamResponse<Request> getRequestById(
+            String requesterId,
+            String requestId,
+            Locale locale
+    );
 
-    SaayamResponse<PagedResponse<Request>> getRequests(String requesterId, Pageable pageable, Locale locale);
+    SaayamResponse<PagedResponse<Request>> getRequests(
+            String requesterId,
+            Pageable pageable,
+            Locale locale
+    );
 
-    SaayamResponse<Request> updateRequest( RequestUpdateDTO requestUpdateDTO, Locale locale);
+    SaayamResponse<Request> updateRequest(
+            RequestUpdateDTO requestUpdateDTO,
+            Locale locale
+    );
 
-    SaayamResponse<Void> deleteRequest(String requesterId, String requestId, Locale locale);
+    SaayamResponse<Void> deleteRequest(
+            String requesterId,
+            String requestId,
+            Locale locale
+    );
 
-    SaayamResponse<Request> cancelRequest(String requesterId, String requestId, Locale locale);
+    SaayamResponse<Request> cancelRequest(
+            String requesterId,
+            String requestId,
+            Locale locale
+    );
 
-    SaayamResponse<Request> resumeRequest(String requesterId, String requestId, Locale locale);
+    SaayamResponse<Request> resumeRequest(
+            String requesterId,
+            String requestId,
+            Locale locale
+    );
 
     SaayamResponse<PagedResponse<GetHelpRequestsDTO>> getAllHelpRequests(
-        Pageable pageable,
-        Locale locale
+            Pageable pageable,
+            Locale locale
     );
 
     SaayamResponse<PagedResponse<GetHelpRequestsDTO>> getUserHelpRequests(
-        String userId,
-        int page,
-        int size,
-        Locale locale
+            String userId,
+            int page,
+            int size,
+            Locale locale
     );
 
     SaayamResponse<PagedResponse<AdminRequestDTO>> getAdminRequests(
-        Pageable pageable,
-        Locale locale
+            Pageable pageable,
+            Locale locale
+    );
+
+    RequestCommentDTO addComment(
+            String requesterId,
+            String requestId,
+            RequestCommentDTO requestCommentDTO,
+            Locale locale
+    );
+
+    List<RequestCommentDTO> getComments(
+            String requesterId,
+            String requestId,
+            Locale locale
+    );
+
+    RequestCommentDTO updateComment(
+            String requesterId,
+            Long id,
+            RequestCommentDTO requestCommentDTO,
+            Locale locale
+    );
+
+    void deleteComment(
+            String requesterId,
+            Long id,
+            Locale locale
     );
 }
+

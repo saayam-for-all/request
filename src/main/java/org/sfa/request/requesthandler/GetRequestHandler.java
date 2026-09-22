@@ -7,6 +7,7 @@ import org.sfa.request.requesthandler.BaseRequestHandler;
 import org.sfa.request.constant.SaayamStatusCode;
 import org.sfa.request.exception.types.NotFoundException;
 import org.sfa.request.response.PagedResponse;
+import org.sfa.request.dto.RequestSummaryDTO;
 import org.sfa.request.exception.handler.LambdaExceptionHandler;
 import org.sfa.request.model.entity.Request;
 import org.sfa.request.response.SaayamResponse;
@@ -56,7 +57,7 @@ public class GetRequestHandler extends BaseRequestHandler<APIGatewayProxyRequest
                 int page = Integer.parseInt(requestEvent.getQueryStringParameters().getOrDefault("page", "0"));
                 int size = Integer.parseInt(requestEvent.getQueryStringParameters().getOrDefault("size", "10"));
                 Pageable pageable = PageRequest.of(page, size);
-                SaayamResponse<PagedResponse<Request>> response = requestService.getRequests(requesterId, pageable, locale);
+                SaayamResponse<PagedResponse<RequestSummaryDTO>> response = requestService.getRequests(requesterId, pageable, locale);
                 return createResponse(HttpStatus.OK.value(), response);
             }
         } catch (Exception e) {

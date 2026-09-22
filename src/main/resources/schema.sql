@@ -104,3 +104,38 @@ BEGIN
     END IF;
 END;
 '
+
+
+-- ==========================================================
+-- Volunteer assignments (issue #14)
+--
+-- One row per volunteer assigned to a request. volunteer_type is 'LEAD'
+-- (at most one per request, enforced by the partial unique index below) or
+-- 'HELPING' (zero or more). This is what backs the Request Details page's
+-- "Lead Volunteer" / "Helping Volunteer" fields.
+--
+-- NOTE: this file is not executed at runtime -- application.properties sets
+-- spring.jpa.hibernate.ddl-auto=none and spring.sql.init.mode=never, so it
+-- serves as documentation of the expected shape. The foreign key below
+-- targets request(req_id), which is what the Request entity maps and what the
+-- deployed virginia_dev_saayam_rdbms schema uses; the `request` definition
+-- earlier in this file still carries the pre-rename request_id/city_name
+-- column names and is stale.
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS volunteers_assigned (
+    volunteers_assigned_id SERIAL PRIMARY KEY,
+    request_id VARCHAR(255) NOT NULL,
+    volunteer_id VARCHAR(255) NOT NULL,
+    volunteer_type VARCHAR(255) NOT NULL,
+    last_update_date TIMESTAMP NOT NULL,
+    CONSTRAINT fk_volunteers_assigned_request FOREIGN KEY (request_id) REFERENCES request (req_id),
+    CONSTRAINT chk_volunteer_type CHECK (volunteer_type IN ('LEAD', 'HELPING')),
+    CONSTRAINT uq_volunteers_assigned_request_volunteer UNIQUE (request_id, volunteer_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_volunteers_assigned_lead
+    ON volunteers_assigned (request_id)
+    WHERE volunteer_type = 'LEAD';
+
+CREATE INDEX IF NOT EXISTS idx_volunteers_assigned_request
+    ON volunteers_assigned (request_id);

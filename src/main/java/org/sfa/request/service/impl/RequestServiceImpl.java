@@ -4,16 +4,20 @@ import org.sfa.request.constant.SaayamStatusCode;
 import org.sfa.request.dto.GuestDetailsDTO;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.dto.RequestDTO;
+import org.sfa.request.dto.RequestSummaryDTO;
+import org.sfa.request.dto.RequestTypeDTO;
 import org.sfa.request.exception.types.ConflictException;
 import org.sfa.request.exception.types.EnumUnspecifiedException;
 import org.sfa.request.exception.types.InvalidRequestException;
 import org.sfa.request.exception.types.NotFoundException;
 import org.sfa.request.model.entity.*;
 import org.sfa.request.model.enums.RequestStatusEnum;
+import org.sfa.request.model.enums.RequestTypeEnum;
 import org.sfa.request.repository.*;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
 import org.sfa.request.service.api.RequestService;
+import org.sfa.request.service.api.VolunteerAssignmentService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
@@ -73,6 +77,7 @@ public class RequestServiceImpl implements RequestService {
     private final RequestTypeRepository requestTypeRepository;
     private final HelpCategoryRepository helpCategoryRepository;
     private final RequestForRepository requestForRepository;
+    private final VolunteerAssignmentService volunteerAssignmentService;
     private final MessageSource messageSource;
 
     @Override
@@ -81,7 +86,7 @@ public class RequestServiceImpl implements RequestService {
         validateEnumIds(requestDTO, locale);
 
         RequestPriority requestPriority = getRequestPriority(requestDTO.getRequestPriority().getRequestPriorityId(), locale);
-        RequestType requestType = getRequestType(requestDTO.getRequestType().getRequestTypeId(), locale);
+        RequestType requestType = getRequestType(resolveRequestTypeId(requestDTO), locale);
         HelpCategory helpCategory = getHelpCategory(requestDTO.getHelpCategory().getCatId(), locale);
         RequestFor requestFor = getRequestFor(requestDTO.getRequestFor().getRequestForId(), locale);
         RequestStatus requestStatus = getRequestStatus(RequestStatusEnum.CREATED.getId(), locale);
@@ -117,14 +122,26 @@ public class RequestServiceImpl implements RequestService {
         }
 
         logger.info("Created request with ID: {}", savedRequest.getRequestId());
+        volunteerAssignmentService.populateAssignments(savedRequest);
         String message = messageSource.getMessage("success.requestCreated", new Object[]{savedRequest.getRequestId()}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_CREATED, message, savedRequest);
+    }
+
+    /**
+     * Requests submitted without a request type default to REMOTE rather than
+     * being rejected - matches issue #14 ("Change Request to Remote as default").
+     */
+    private Integer resolveRequestTypeId(RequestDTO requestDTO) {
+        return Optional.ofNullable(requestDTO.getRequestType())
+                .map(RequestTypeDTO::getRequestTypeId)
+                .orElse(RequestTypeEnum.REMOTE.getId());
     }
 
     @Override
     @Transactional(readOnly = true)
     public SaayamResponse<Request> getRequestById(String requesterId, String requestId, Locale locale) {
         Request request = findActiveRequest(requesterId, requestId, locale);
+        volunteerAssignmentService.populateAssignments(request);
         logger.info("Retrieved request with ID: {}", requestId);
         String message = messageSource.getMessage("success.requestFound", new Object[]{requestId}, locale);
         return SaayamResponse.success(SaayamStatusCode.SUCCESS, message, request);
@@ -132,12 +149,15 @@ public class RequestServiceImpl implements RequestService {
 
     @Override
     @Transactional(readOnly = true)
-    public SaayamResponse<PagedResponse<Request>> getRequests(String requesterId, Pageable pageable, Locale locale) {
+    public SaayamResponse<PagedResponse<RequestSummaryDTO>> getRequests(String requesterId, Pageable pageable, Locale locale) {
         Sort sort = pageable.getSort().isSorted() ? pageable.getSort() : Sort.by(Sort.Direction.DESC, "requestId");
         Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
         Page<Request> requests = requestRepository.findAllActiveByRequesterId(requesterId, RequestStatusEnum.DELETED.getId(), sortedPageable);
 
-        PagedResponse<Request> pagedResponse = new PagedResponse<>(requests);
+        requests.getContent().forEach(volunteerAssignmentService::populateAssignments);
+        Page<RequestSummaryDTO> summaries = requests.map(RequestSummaryDTO::fromEntity);
+
+        PagedResponse<RequestSummaryDTO> pagedResponse = new PagedResponse<>(summaries);
 
         logger.info("Retrieved {} requests for requester ID: {}", requests.getContent().size(), requesterId);
         String message = messageSource.getMessage("success.requestsRetrieved", null, locale);
@@ -160,6 +180,7 @@ public class RequestServiceImpl implements RequestService {
         Request updatedRequest = requestRepository.save(request);
 
         logger.info("Updated request with ID: {}", requestId);
+        volunteerAssignmentService.populateAssignments(updatedRequest);
         String message = messageSource.getMessage("success.requestUpdated", new Object[]{requestId}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_UPDATED, message, updatedRequest);
     }
@@ -201,6 +222,7 @@ public class RequestServiceImpl implements RequestService {
         Request cancelledRequest = requestRepository.save(request);
 
         logger.info("Cancelled request with ID: {}", requestId);
+        volunteerAssignmentService.populateAssignments(cancelledRequest);
         String message = messageSource.getMessage("success.requestCancelled", new Object[]{requestId}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_CANCELLED, message, cancelledRequest);
     }
@@ -222,13 +244,17 @@ public class RequestServiceImpl implements RequestService {
         Request resumedRequest = requestRepository.save(request);
 
         logger.info("Resumed request with ID: {}", requestId);
+        volunteerAssignmentService.populateAssignments(resumedRequest);
         String message = messageSource.getMessage("success.requestResumed", new Object[]{requestId}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_RESUMED, message, resumedRequest);
     }
 
     private void validateEnumIds(RequestDTO requestDTO, Locale locale) {
         validateEnumId(requestDTO.getRequestPriority().getRequestPriorityId(), "RequestPriority", locale);
-        validateEnumId(requestDTO.getRequestType().getRequestTypeId(), "RequestType", locale);
+        // requestType is optional - defaults to REMOTE via resolveRequestTypeId when absent
+        if (requestDTO.getRequestType() != null) {
+            validateEnumId(requestDTO.getRequestType().getRequestTypeId(), "RequestType", locale);
+        }
         validateEnumId(requestDTO.getHelpCategory().getCatId(), "HelpCategory", locale); // ✅
         validateEnumId(requestDTO.getRequestFor().getRequestForId(), "RequestFor", locale);
     }

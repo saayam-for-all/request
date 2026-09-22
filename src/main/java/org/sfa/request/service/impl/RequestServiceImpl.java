@@ -13,6 +13,8 @@ import org.sfa.request.model.enums.RequestStatusEnum;
 import org.sfa.request.repository.*;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
+import org.sfa.request.dto.notification.NotificationEventType;
+import org.sfa.request.service.api.NotificationEventService;
 import org.sfa.request.service.api.RequestService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +75,7 @@ public class RequestServiceImpl implements RequestService {
     private final RequestTypeRepository requestTypeRepository;
     private final HelpCategoryRepository helpCategoryRepository;
     private final RequestForRepository requestForRepository;
+    private final NotificationEventService notificationEventService;
     private final MessageSource messageSource;
 
     @Override
@@ -117,6 +120,13 @@ public class RequestServiceImpl implements RequestService {
         }
 
         logger.info("Created request with ID: {}", savedRequest.getRequestId());
+
+        // Notify matched volunteers. Fires after the transaction commits, so a
+        // notification is only ever sent for a request that actually persisted, and a
+        // notification failure can never roll back or fail request creation.
+        notificationEventService.enqueueRequestEvent(
+                NotificationEventType.REQUEST_CREATED, savedRequest, locale);
+
         String message = messageSource.getMessage("success.requestCreated", new Object[]{savedRequest.getRequestId()}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_CREATED, message, savedRequest);
     }

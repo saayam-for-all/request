@@ -27,6 +27,7 @@ import org.sfa.request.repository.RequestStatusRepository;
 import org.sfa.request.repository.RequestTypeRepository;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.response.SaayamResponse;
+import org.sfa.request.service.api.NotificationEventService;
 import org.sfa.request.service.api.VolunteerAssignmentService;
 import org.springframework.context.MessageSource;
 import org.springframework.data.domain.PageImpl;
@@ -67,6 +68,7 @@ class RequestServiceImplIssue14Test {
     private final HelpCategoryRepository helpCategoryRepository = mock(HelpCategoryRepository.class);
     private final RequestForRepository requestForRepository = mock(RequestForRepository.class);
     private final VolunteerAssignmentService volunteerAssignmentService = mock(VolunteerAssignmentService.class);
+    private final NotificationEventService notificationEventService = mock(NotificationEventService.class);
     private final MessageSource messageSource = mock(MessageSource.class);
 
     private RequestServiceImpl service;
@@ -83,6 +85,7 @@ class RequestServiceImplIssue14Test {
                 helpCategoryRepository,
                 requestForRepository,
                 volunteerAssignmentService,
+                notificationEventService,
                 messageSource
         );
 

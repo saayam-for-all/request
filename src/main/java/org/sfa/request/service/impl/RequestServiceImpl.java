@@ -16,6 +16,8 @@ import org.sfa.request.model.enums.RequestTypeEnum;
 import org.sfa.request.repository.*;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
+import org.sfa.request.dto.notification.NotificationEventType;
+import org.sfa.request.service.api.NotificationEventService;
 import org.sfa.request.service.api.RequestService;
 import org.sfa.request.service.api.VolunteerAssignmentService;
 import org.slf4j.Logger;
@@ -78,6 +80,7 @@ public class RequestServiceImpl implements RequestService {
     private final HelpCategoryRepository helpCategoryRepository;
     private final RequestForRepository requestForRepository;
     private final VolunteerAssignmentService volunteerAssignmentService;
+    private final NotificationEventService notificationEventService;
     private final MessageSource messageSource;
 
     @Override
@@ -122,7 +125,16 @@ public class RequestServiceImpl implements RequestService {
         }
 
         logger.info("Created request with ID: {}", savedRequest.getRequestId());
+        // Populate before enqueueing, so the request handed to the notification already
+        // carries its lead/helping volunteers.
         volunteerAssignmentService.populateAssignments(savedRequest);
+
+        // Notify matched volunteers. Fires after the transaction commits, so a
+        // notification is only ever sent for a request that actually persisted, and a
+        // notification failure can never roll back or fail request creation.
+        notificationEventService.enqueueRequestEvent(
+                NotificationEventType.REQUEST_CREATED, savedRequest, locale);
+
         String message = messageSource.getMessage("success.requestCreated", new Object[]{savedRequest.getRequestId()}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_CREATED, message, savedRequest);
     }

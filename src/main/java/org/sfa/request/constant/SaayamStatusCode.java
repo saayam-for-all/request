@@ -27,6 +27,8 @@ public enum SaayamStatusCode {
     REQUEST_RESUMED("SAAYAM-1405", "Request resumed"),
     REQUESTS_RETRIEVED("SAAYAM-1406", "Requests retrieved successfully"),
     REQUEST_SENT_TO_QUEUE("SAAYAM-1407", "Request sent to queue"),
+    VOLUNTEER_ASSIGNED("SAAYAM-1408", "Volunteer assigned"),
+    VOLUNTEER_REMOVED("SAAYAM-1409", "Volunteer removed"),
 
     // Client error codes (1500-1549)
     BAD_REQUEST("SAAYAM-1500", "Bad request"),

@@ -221,3 +221,27 @@ BEGIN
     END IF;
 END;
 ' LANGUAGE plpgsql;
+
+-- ==========================================================
+-- STEP 6: Volunteer Assignments (issue #14)
+-- One row per volunteer assigned to a request. volunteer_type is
+-- 'LEAD' (at most one per request) or 'HELPING' (zero or more).
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS volunteers_assigned (
+    volunteers_assigned_id SERIAL PRIMARY KEY,
+    request_id VARCHAR(255) NOT NULL,
+    volunteer_id VARCHAR(255) NOT NULL,
+    volunteer_type VARCHAR(255) NOT NULL,
+    last_update_date TIMESTAMP NOT NULL,
+    CONSTRAINT fk_volunteers_assigned_request FOREIGN KEY (request_id) REFERENCES request (req_id),
+    CONSTRAINT fk_volunteers_assigned_volunteer FOREIGN KEY (volunteer_id) REFERENCES users (user_id),
+    CONSTRAINT chk_volunteer_type CHECK (volunteer_type IN ('LEAD', 'HELPING')),
+    CONSTRAINT uq_volunteers_assigned_request_volunteer UNIQUE (request_id, volunteer_id)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_volunteers_assigned_lead
+    ON volunteers_assigned (request_id)
+    WHERE volunteer_type = 'LEAD';
+
+CREATE INDEX IF NOT EXISTS idx_volunteers_assigned_request
+    ON volunteers_assigned (request_id);

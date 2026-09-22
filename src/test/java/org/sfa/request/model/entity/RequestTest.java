@@ -28,7 +28,7 @@ class RequestTest {
         request.setRequestDescription("This is a test request.");
         request.setAudioRequestDescription("Test audio description");
         request.setSubmittedAt(submittedAtTime);
-        request.setLeadVolunteerUserId(101);
+        request.setLeadVolunteerUserId("101");
         request.setServicedAt(servicedAtTime);
         request.setLastUpdatedAt(lastUpdatedAtTime);
         request.setRequestSubject("test");
@@ -45,16 +45,17 @@ class RequestTest {
         assertThat(request.getRequestDescription()).isEqualTo("This is a test request.");
         assertThat(request.getAudioRequestDescription()).isEqualTo("Test audio description");
         assertThat(request.getSubmittedAt()).isEqualTo(submittedAtTime);
-        assertThat(request.getLeadVolunteerUserId()).isEqualTo(101);
+        assertThat(request.getLeadVolunteerUserId()).isEqualTo("101");
         assertThat(request.getServicedAt()).isEqualTo(servicedAtTime);
         assertThat(request.getLastUpdatedAt()).isEqualTo(lastUpdatedAtTime);
 
         String expectedToString = "Request(requestId=REQ12345, requesterId=USR123, " +
                 "requestStatus=" + new RequestStatus() + ", requestPriority=" + new RequestPriority() +
-                ", requestType=" + new RequestType() + ", requestCategory=" + new RequestCategory() +
+                ", requestType=" + new RequestType() + ", helpCategory=" + new HelpCategory() +
                 ", requestFor=" + new RequestFor() + ", city=New York, zipCode=10001, requestDescription=This is a test request., " +
                 "audioRequestDescription=Test audio description, submittedAt=" + submittedAtTime +
-                ", leadVolunteerUserId=101, servicedAt=" + servicedAtTime + ", lastUpdatedAt=" + lastUpdatedAtTime + ")";
+                ", servicedAt=" + servicedAtTime + ", lastUpdatedAt=" + lastUpdatedAtTime +
+                ", requestIsLeadVol=null, requestSubject=test, leadVolunteerUserId=101, helpingVolunteerUserIds=[])";
         System.out.println(request.toString());
         assertThat(request.toString()).isEqualTo(expectedToString);
     }
@@ -67,8 +68,8 @@ class RequestTest {
 
         Request request = new Request("REQ12345", "USR123", new RequestStatus(), new RequestPriority(),
                 new RequestType(), new HelpCategory(), new RequestFor(), "New York", "10001",
-                "This is a test request.", "Test audio description", submittedAtTime, 101, servicedAtTime,
-                lastUpdatedAtTime,new RequestIsLeadVol(),"test");
+                "This is a test request.", "Test audio description", submittedAtTime, servicedAtTime,
+                lastUpdatedAtTime, new RequestIsLeadVol(), "test", "101", java.util.List.of());
 
         assertThat(request.getRequestId()).isEqualTo("REQ12345");
         assertThat(request.getRequesterId()).isEqualTo("USR123");
@@ -82,16 +83,17 @@ class RequestTest {
         assertThat(request.getRequestDescription()).isEqualTo("This is a test request.");
         assertThat(request.getAudioRequestDescription()).isEqualTo("Test audio description");
         assertThat(request.getSubmittedAt()).isEqualTo(submittedAtTime);
-        assertThat(request.getLeadVolunteerUserId()).isEqualTo(101);
+        assertThat(request.getLeadVolunteerUserId()).isEqualTo("101");
         assertThat(request.getServicedAt()).isEqualTo(servicedAtTime);
         assertThat(request.getLastUpdatedAt()).isEqualTo(lastUpdatedAtTime);
 
         String expectedToString = "Request(requestId=REQ12345, requesterId=USR123, " +
                 "requestStatus=" + new RequestStatus() + ", requestPriority=" + new RequestPriority() +
-                ", requestType=" + new RequestType() + ", requestCategory=" + new RequestCategory() +
+                ", requestType=" + new RequestType() + ", helpCategory=" + new HelpCategory() +
                 ", requestFor=" + new RequestFor() + ", city=New York, zipCode=10001, requestDescription=This is a test request., " +
                 "audioRequestDescription=Test audio description, submittedAt=" + submittedAtTime +
-                ", leadVolunteerUserId=101, servicedAt=" + servicedAtTime + ", lastUpdatedAt=" + lastUpdatedAtTime + ")";
+                ", servicedAt=" + servicedAtTime + ", lastUpdatedAt=" + lastUpdatedAtTime +
+                ", requestIsLeadVol=" + new RequestIsLeadVol() + ", requestSubject=test, leadVolunteerUserId=101, helpingVolunteerUserIds=[])";
         assertThat(request.toString()).isEqualTo(expectedToString);
     }
 
@@ -114,7 +116,7 @@ class RequestTest {
                 .requestDescription("This is a test request.")
                 .audioRequestDescription("Test audio description")
                 .submittedAt(submittedAtTime)
-                .leadVolunteerUserId(101)
+                .leadVolunteerUserId("101")
                 .servicedAt(servicedAtTime)
                 .lastUpdatedAt(lastUpdatedAtTime)
                 .requestIsLeadVol(new RequestIsLeadVol())
@@ -150,7 +152,7 @@ class RequestTest {
         request1.setRequestDescription("This is a test request.");
         request1.setAudioRequestDescription("Test audio description");
         request1.setSubmittedAt(submittedAtTime);
-        request1.setLeadVolunteerUserId(101);
+        request1.setLeadVolunteerUserId("101");
         request1.setServicedAt(servicedAtTime);
         request1.setLastUpdatedAt(lastUpdatedAtTime);
 
@@ -167,7 +169,7 @@ class RequestTest {
         request2.setRequestDescription("This is a test request.");
         request2.setAudioRequestDescription("Test audio description");
         request2.setSubmittedAt(submittedAtTime);
-        request2.setLeadVolunteerUserId(101);
+        request2.setLeadVolunteerUserId("101");
         request2.setServicedAt(servicedAtTime);
         request2.setLastUpdatedAt(lastUpdatedAtTime);
 
@@ -184,7 +186,7 @@ class RequestTest {
         request3.setRequestDescription("Different request description.");
         request3.setAudioRequestDescription("Different audio description");
         request3.setSubmittedAt(submittedAtTime.plusDays(1));
-        request3.setLeadVolunteerUserId(202);
+        request3.setLeadVolunteerUserId("202");
         request3.setServicedAt(servicedAtTime.plusDays(1));
         request3.setLastUpdatedAt(lastUpdatedAtTime.plusDays(1));
 
@@ -262,7 +264,7 @@ class RequestTest {
         request1.setRequestDescription("This is a test request.");
         request1.setAudioRequestDescription("Test audio description");
         request1.setSubmittedAt(submittedAtTime);
-        request1.setLeadVolunteerUserId(101);
+        request1.setLeadVolunteerUserId("101");
         request1.setServicedAt(servicedAtTime);
         request1.setLastUpdatedAt(lastUpdatedAtTime);
 
@@ -291,7 +293,7 @@ class RequestTest {
         request1.setRequestDescription("This is a test request.");
         request1.setAudioRequestDescription("Test audio description");
         request1.setSubmittedAt(submittedAtTime);
-        request1.setLeadVolunteerUserId(101);
+        request1.setLeadVolunteerUserId("101");
         request1.setServicedAt(servicedAtTime);
         request1.setLastUpdatedAt(lastUpdatedAtTime);
 
@@ -308,7 +310,7 @@ class RequestTest {
         request2.setRequestDescription("This is a test request.");
         request2.setAudioRequestDescription("Test audio description");
         request2.setSubmittedAt(submittedAtTime);
-        request2.setLeadVolunteerUserId(101);
+        request2.setLeadVolunteerUserId("101");
         request2.setServicedAt(servicedAtTime);
         request2.setLastUpdatedAt(lastUpdatedAtTime);
 

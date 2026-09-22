@@ -1,6 +1,7 @@
 package org.sfa.request.service.impl;
 
 import org.sfa.request.constant.SaayamStatusCode;
+import org.sfa.request.dto.RequestSummaryDTO;
 import org.sfa.request.response.PagedResponse;
 import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.exception.types.ConflictException;
@@ -9,12 +10,14 @@ import org.sfa.request.exception.types.InvalidRequestException;
 import org.sfa.request.exception.types.NotFoundException;
 import org.sfa.request.model.entity.*;
 import org.sfa.request.model.enums.RequestStatusEnum;
+import org.sfa.request.model.enums.RequestTypeEnum;
 import org.sfa.request.repository.*;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
 import org.sfa.request.dto.notification.NotificationEventType;
 import org.sfa.request.service.api.NotificationEventService;
 import org.sfa.request.service.api.RequestService;
+import org.sfa.request.service.api.VolunteerAssignmentService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
@@ -72,6 +75,7 @@ public class RequestServiceImpl implements RequestService {
     private final RequestTypeRepository requestTypeRepository;
     private final RequestCategoryRepository requestCategoryRepository;
     private final RequestForRepository requestForRepository;
+    private final VolunteerAssignmentService volunteerAssignmentService;
     private final NotificationEventService notificationEventService;
     private final MessageSource messageSource;
     private final RequestIsLeadVolRepository requestIsLeadVolRepository;
@@ -83,8 +87,8 @@ public class RequestServiceImpl implements RequestService {
         validateEnumIds(requestDTO, locale);
 
         RequestPriority requestPriority = getRequestPriority(requestDTO.getRequestPriority().getRequestPriorityId(), locale);
-        RequestType requestType = getRequestType(requestDTO.getRequestType().getRequestTypeId(), locale);
-        HelpCategory requestCategory = getHelpCategory(requestDTO.getHelpCategory().getCatId(), locale);
+        RequestType requestType = getRequestType(resolveRequestTypeId(requestDTO), locale);
+        HelpCategory helpCategory = getHelpCategory(requestDTO.getHelpCategory().getCatId(), locale);
         RequestFor requestFor = getRequestFor(requestDTO.getRequestFor().getRequestForId(), locale);
         RequestStatus requestStatus = getRequestStatus(RequestStatusEnum.CREATED.getId(), locale);
         RequestIsLeadVol requestIsLeadVol = getRequestIsLeadVol(requestDTO.getRequestIsLeadVol().getRequestIsLeadId(), locale);
@@ -95,7 +99,7 @@ public class RequestServiceImpl implements RequestService {
                 requestDTO,
                 requestPriority,
                 requestType,
-                requestCategory,
+                helpCategory,
                 requestFor,
                 requestStatus,
                 requestIsLeadVol
@@ -103,6 +107,9 @@ public class RequestServiceImpl implements RequestService {
         Request savedRequest = requestRepository.save(request);
 
         logger.info("Created request with ID: {}", savedRequest.getRequestId());
+        // Populate before enqueueing, so the request handed to the notification already
+        // carries its lead/helping volunteers.
+        volunteerAssignmentService.populateAssignments(savedRequest);
 
         // Notify matched volunteers. Fires after the transaction commits, so a
         // notification is only ever sent for a request that actually persisted, and a
@@ -114,10 +121,21 @@ public class RequestServiceImpl implements RequestService {
         return SaayamResponse.success(SaayamStatusCode.REQUEST_CREATED, message, savedRequest);
     }
 
+    /**
+     * Requests submitted without a request type default to REMOTE rather than
+     * being rejected - matches issue #14 ("Change Request to Remote as default").
+     */
+    private Integer resolveRequestTypeId(RequestDTO requestDTO) {
+        return Optional.ofNullable(requestDTO.getRequestType())
+                .map(org.sfa.request.dto.RequestTypeDTO::getRequestTypeId)
+                .orElse(RequestTypeEnum.REMOTE.getId());
+    }
+
     @Override
     @Transactional(readOnly = true)
     public SaayamResponse<Request> getRequestById(String requesterId, String requestId, Locale locale) {
         Request request = findActiveRequest(requesterId, requestId, locale);
+        volunteerAssignmentService.populateAssignments(request);
         logger.info("Retrieved request with ID: {}", requestId);
         String message = messageSource.getMessage("success.requestFound", new Object[]{requestId}, locale);
         return SaayamResponse.success(SaayamStatusCode.SUCCESS, message, request);
@@ -125,12 +143,13 @@ public class RequestServiceImpl implements RequestService {
 
     @Override
     @Transactional(readOnly = true)
-    public SaayamResponse<PagedResponse<Request>> getRequests(String requesterId, Pageable pageable, Locale locale) {
+    public SaayamResponse<PagedResponse<RequestSummaryDTO>> getRequests(String requesterId, Pageable pageable, Locale locale) {
         Sort sort = pageable.getSort().isSorted() ? pageable.getSort() : Sort.by(Sort.Direction.DESC, "requestId");
         Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
         Page<Request> requests = requestRepository.findAllActiveByRequesterId(requesterId, RequestStatusEnum.DELETED.getId(), sortedPageable);
+        Page<RequestSummaryDTO> summaries = requests.map(RequestSummaryDTO::fromEntity);
 
-        PagedResponse<Request> pagedResponse = new PagedResponse<>(requests);
+        PagedResponse<RequestSummaryDTO> pagedResponse = new PagedResponse<>(summaries);
 
         logger.info("Retrieved {} requests for requester ID: {}", requests.getContent().size(), requesterId);
         String message = messageSource.getMessage("success.requestsRetrieved", null, locale);
@@ -153,6 +172,7 @@ public class RequestServiceImpl implements RequestService {
         Request updatedRequest = requestRepository.save(request);
 
         logger.info("Updated request with ID: {}", requestId);
+        volunteerAssignmentService.populateAssignments(updatedRequest);
         String message = messageSource.getMessage("success.requestUpdated", new Object[]{requestId}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_UPDATED, message, updatedRequest);
     }
@@ -194,6 +214,7 @@ public class RequestServiceImpl implements RequestService {
         Request cancelledRequest = requestRepository.save(request);
 
         logger.info("Cancelled request with ID: {}", requestId);
+        volunteerAssignmentService.populateAssignments(cancelledRequest);
         String message = messageSource.getMessage("success.requestCancelled", new Object[]{requestId}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_CANCELLED, message, cancelledRequest);
     }
@@ -215,14 +236,18 @@ public class RequestServiceImpl implements RequestService {
         Request resumedRequest = requestRepository.save(request);
 
         logger.info("Resumed request with ID: {}", requestId);
+        volunteerAssignmentService.populateAssignments(resumedRequest);
         String message = messageSource.getMessage("success.requestResumed", new Object[]{requestId}, locale);
         return SaayamResponse.success(SaayamStatusCode.REQUEST_RESUMED, message, resumedRequest);
     }
 
     private void validateEnumIds(RequestDTO requestDTO, Locale locale) {
         validateEnumId(requestDTO.getRequestPriority().getRequestPriorityId(), "RequestPriority", locale);
-        validateEnumId(requestDTO.getRequestType().getRequestTypeId(), "RequestType", locale);
-        validateEnumId(requestDTO.getHelpCategory().getCatId(),locale);
+        // requestType is optional - defaults to REMOTE via resolveRequestTypeId when absent
+        if (requestDTO.getRequestType() != null) {
+            validateEnumId(requestDTO.getRequestType().getRequestTypeId(), "RequestType", locale);
+        }
+        validateEnumId(requestDTO.getHelpCategory().getCatId(), "HelpCategory", locale);
         validateEnumId(requestDTO.getRequestFor().getRequestForId(), "RequestFor", locale);
         validateEnumId(requestDTO.getRequestIsLeadVol().getRequestIsLeadId(), "RequestIsLeadId", locale);
     }
@@ -238,8 +263,8 @@ public class RequestServiceImpl implements RequestService {
         }
     }
 
-    private void validateEnumId(String enumType, Locale locale) {
-        if (enumType == null) {
+    private void validateEnumId(String id, String enumType, Locale locale) {
+        if (id == null || id.isBlank()) {
             throw new EnumUnspecifiedException(
                     messageSource.getMessage("error.enumUnspecified", new Object[]{enumType}, locale)
             );
@@ -333,7 +358,6 @@ public class RequestServiceImpl implements RequestService {
                 .requestDescription(requestDTO.getRequestDescription())
                 .audioRequestDescription(requestDTO.getAudioRequestDescription())
                 .submittedAt(now)
-                .leadVolunteerUserId(requestDTO.getLeadVolunteerUserId())
                 .servicedAt(requestDTO.getServicedAt())
                 .lastUpdatedAt(now)
                 .requestIsLeadVol(requestIsLeadVol)
@@ -365,8 +389,6 @@ public class RequestServiceImpl implements RequestService {
         Optional.ofNullable(requestDTO.getRequestDescription()).ifPresent(request::setRequestDescription);
 
         Optional.ofNullable(requestDTO.getAudioRequestDescription()).ifPresent(request::setAudioRequestDescription);
-
-        Optional.ofNullable(requestDTO.getLeadVolunteerUserId()).ifPresent(request::setLeadVolunteerUserId);
 
         Optional.ofNullable(requestDTO.getServicedAt()).ifPresent(request::setServicedAt);
     }

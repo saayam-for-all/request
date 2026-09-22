@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 
 import java.io.Serializable;
 import java.time.ZonedDateTime;
+import java.util.List;
 
 /**
  * ClassName: Request
@@ -112,16 +113,12 @@ public class Request implements Serializable {
     @Column(name = "submission_date", columnDefinition = "TIMESTAMP")
     private ZonedDateTime submittedAt;
 
-//    @Column(name = "lead_volunteer_user_id")
-    @Transient
-    private Integer leadVolunteerUserId;
-
     @Column(name = "serviced_date", columnDefinition = "TIMESTAMP")
     private ZonedDateTime servicedAt;
 
     @Column(name = "last_update_date", columnDefinition = "TIMESTAMP")
     private ZonedDateTime lastUpdatedAt;
-    
+
     @ManyToOne
     @JoinColumn(
             name = "req_islead_id",
@@ -129,14 +126,28 @@ public class Request implements Serializable {
             referencedColumnName = "req_islead_id",
             foreignKey = @ForeignKey(name = "fk_req_islead_id")
     )
-    private RequestIsLeadVol  requestIsLeadVol;
-	  
-//	  @Column(name = "req_loc", nullable = false, length = 125) 
+    private RequestIsLeadVol requestIsLeadVol;
+
+//	  @Column(name = "req_loc", nullable = false, length = 125)
 //	  private String requestLoc;
-	  
-	  @Column(name = "req_subj", nullable = false, length = 125) 
-	  private String requestSubject; 
-	  
-	 
-  
+
+    @Column(name = "req_subj", nullable = false, length = 125)
+    private String requestSubject;
+
+    /**
+     * Not persisted on Request itself - derived from volunteers_assigned
+     * (volunteer_type = LEAD) and populated by VolunteerAssignmentService
+     * whenever a Request is returned from the API.
+     */
+    @Transient
+    private String leadVolunteerUserId;
+
+    /**
+     * Not persisted on Request itself - derived from volunteers_assigned
+     * (volunteer_type = HELPING), which supports more than one helping
+     * volunteer per request.
+     */
+    @Transient
+    @Builder.Default
+    private List<String> helpingVolunteerUserIds = List.of();
 }

@@ -10,6 +10,8 @@ import org.sfa.request.dto.*;
 import org.sfa.request.model.entity.*;
 import org.sfa.request.model.enums.*;
 import org.sfa.request.response.PagedResponse;
+import org.sfa.request.dto.RequestSummaryDTO;
+import org.sfa.request.service.api.VolunteerAssignmentService;
 import org.sfa.request.response.SaayamResponse;
 import org.sfa.request.service.api.RequestService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +47,9 @@ class RequestControllerTest {
 
     @MockBean
     private RequestService requestService;
+
+    @MockBean
+    private VolunteerAssignmentService volunteerAssignmentService;
 
     /**
      * Method under test:
@@ -98,7 +103,7 @@ class RequestControllerTest {
         request.setAudioRequestDescription("Audio Request Description");
         request.setCity("Oxford");
         request.setLastUpdatedAt(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC));
-        request.setLeadVolunteerUserId(1);
+        request.setLeadVolunteerUserId("1");
         request.setHelpCategory(helpcategory);
         request.setRequestDescription("Request Description");
         request.setRequestFor(requestFor);
@@ -133,17 +138,7 @@ class RequestControllerTest {
                 .andExpect(MockMvcResultMatchers.content().contentType("application/json"))
                 .andExpect(MockMvcResultMatchers.content()
                         .string(
-                                "{\"success\":true,\"statusCode\":1,\"saayamCode\":\"Saayam Code\",\"message\":\"Not all who wander are"
-                                        + " lost\",\"data\":{\"requestId\":\"42\",\"requesterId\":\"42\",\"requestStatus\":{\"requestStatusId\":1,\"status\":"
-                                        + "\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},"
-                                        + "\"requestPriority\":{\"priorityId\":1,\"priority\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone"
-                                        + " or something\",\"lastUpdatedAt\":0.0},\"requestType\":{\"requestTypeId\":1,\"type\":\"UNSPECIFIED\",\"description\":\"The"
-                                        + " characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"requestCategory\":{\"requestCategoryId"
-                                        + "\":1,\"category\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt"
-                                        + "\":0.0},\"requestFor\":{\"requestForId\":1,\"description\":\"The characteristics of someone or something\","
-                                        + "\"lastUpdatedAt\":0.0,\"for\":\"UNSPECIFIED\"},\"city\":\"Oxford\",\"zipCode\":\"21654\",\"requestDescription\":\"Request"
-                                        + " Description\",\"audioRequestDescription\":\"Audio Request Description\",\"submittedAt\":0.0,\"leadVolunteerUserId"
-                                        + "\":1,\"servicedAt\":0.0,\"lastUpdatedAt\":0.0},\"timestamp\":0.0}"));
+                                "{\"success\":true,\"statusCode\":1,\"saayamCode\":\"Saayam Code\",\"message\":\"Not all who wander are lost\",\"data\":{\"requestId\":\"42\",\"requesterId\":\"42\",\"requestStatus\":{\"requestStatusId\":1,\"status\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"requestPriority\":{\"priorityId\":1,\"priority\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"requestType\":{\"requestTypeId\":1,\"type\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"helpCategory\":{\"catId\":\"1\",\"catName\":\"FOOD_AND_ESSENTIALS_SUPPORT\",\"catDesc\":\"Support for food and essential items\"},\"requestFor\":{\"requestForId\":1,\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0,\"for\":\"UNSPECIFIED\"},\"city\":\"Oxford\",\"zipCode\":\"21654\",\"requestDescription\":\"Request Description\",\"audioRequestDescription\":\"Audio Request Description\",\"submittedAt\":0.0,\"servicedAt\":0.0,\"lastUpdatedAt\":0.0,\"requestIsLeadVol\":null,\"requestSubject\":null,\"leadVolunteerUserId\":\"1\",\"helpingVolunteerUserIds\":[]},\"timestamp\":0.0}"));
     }
 
     /**
@@ -168,7 +163,7 @@ class RequestControllerTest {
         HttpServletRequest request = null;
 
         // Act
-        ResponseEntity<SaayamResponse<PagedResponse<Request>>> actualRequests = requestController.getRequests(requesterId,
+        ResponseEntity<SaayamResponse<PagedResponse<RequestSummaryDTO>>> actualRequests = requestController.getRequests(requesterId,
                 pageable, request);
 
         // Assert
@@ -205,8 +200,7 @@ class RequestControllerTest {
                 .andExpect(MockMvcResultMatchers.content().contentType("application/json"))
                 .andExpect(MockMvcResultMatchers.content()
                         .string(
-                                "{\"success\":true,\"statusCode\":1,\"saayamCode\":\"Saayam Code\",\"message\":\"Not all who wander are"
-                                        + " lost\",\"timestamp\":0.0}"));
+                                "{\"success\":true,\"statusCode\":1,\"saayamCode\":\"Saayam Code\",\"message\":\"Not all who wander are lost\",\"timestamp\":0.0}"));
     }
 
     /**
@@ -261,7 +255,7 @@ class RequestControllerTest {
         request.setAudioRequestDescription("Audio Request Description");
         request.setCity("Oxford");
         request.setLastUpdatedAt(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC));
-        request.setLeadVolunteerUserId(1);
+        request.setLeadVolunteerUserId("1");
         request.setHelpCategory(helpcategory);
         request.setRequestDescription("Request Description");
         request.setRequestFor(requestFor);
@@ -296,17 +290,7 @@ class RequestControllerTest {
                 .andExpect(MockMvcResultMatchers.content().contentType("application/json"))
                 .andExpect(MockMvcResultMatchers.content()
                         .string(
-                                "{\"success\":true,\"statusCode\":1,\"saayamCode\":\"Saayam Code\",\"message\":\"Not all who wander are"
-                                        + " lost\",\"data\":{\"requestId\":\"42\",\"requesterId\":\"42\",\"requestStatus\":{\"requestStatusId\":1,\"status\":"
-                                        + "\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},"
-                                        + "\"requestPriority\":{\"priorityId\":1,\"priority\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone"
-                                        + " or something\",\"lastUpdatedAt\":0.0},\"requestType\":{\"requestTypeId\":1,\"type\":\"UNSPECIFIED\",\"description\":\"The"
-                                        + " characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"requestCategory\":{\"requestCategoryId"
-                                        + "\":1,\"category\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt"
-                                        + "\":0.0},\"requestFor\":{\"requestForId\":1,\"description\":\"The characteristics of someone or something\","
-                                        + "\"lastUpdatedAt\":0.0,\"for\":\"UNSPECIFIED\"},\"city\":\"Oxford\",\"zipCode\":\"21654\",\"requestDescription\":\"Request"
-                                        + " Description\",\"audioRequestDescription\":\"Audio Request Description\",\"submittedAt\":0.0,\"leadVolunteerUserId"
-                                        + "\":1,\"servicedAt\":0.0,\"lastUpdatedAt\":0.0},\"timestamp\":0.0}"));
+                                "{\"success\":true,\"statusCode\":1,\"saayamCode\":\"Saayam Code\",\"message\":\"Not all who wander are lost\",\"data\":{\"requestId\":\"42\",\"requesterId\":\"42\",\"requestStatus\":{\"requestStatusId\":1,\"status\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"requestPriority\":{\"priorityId\":1,\"priority\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"requestType\":{\"requestTypeId\":1,\"type\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"helpCategory\":{\"catId\":\"1\",\"catName\":\"FOOD_AND_ESSENTIALS_SUPPORT\",\"catDesc\":\"Support for food and essential items\"},\"requestFor\":{\"requestForId\":1,\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0,\"for\":\"UNSPECIFIED\"},\"city\":\"Oxford\",\"zipCode\":\"21654\",\"requestDescription\":\"Request Description\",\"audioRequestDescription\":\"Audio Request Description\",\"submittedAt\":0.0,\"servicedAt\":0.0,\"lastUpdatedAt\":0.0,\"requestIsLeadVol\":null,\"requestSubject\":null,\"leadVolunteerUserId\":\"1\",\"helpingVolunteerUserIds\":[]},\"timestamp\":0.0}"));
     }
 
     /**
@@ -361,7 +345,7 @@ class RequestControllerTest {
         request.setAudioRequestDescription("Audio Request Description");
         request.setCity("Oxford");
         request.setLastUpdatedAt(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC));
-        request.setLeadVolunteerUserId(1);
+        request.setLeadVolunteerUserId("1");
         request.setHelpCategory(helpcategory);
         request.setRequestDescription("Request Description");
         request.setRequestFor(requestFor);
@@ -396,17 +380,7 @@ class RequestControllerTest {
                 .andExpect(MockMvcResultMatchers.content().contentType("application/json"))
                 .andExpect(MockMvcResultMatchers.content()
                         .string(
-                                "{\"success\":true,\"statusCode\":1,\"saayamCode\":\"Saayam Code\",\"message\":\"Not all who wander are"
-                                        + " lost\",\"data\":{\"requestId\":\"42\",\"requesterId\":\"42\",\"requestStatus\":{\"requestStatusId\":1,\"status\":"
-                                        + "\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},"
-                                        + "\"requestPriority\":{\"priorityId\":1,\"priority\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone"
-                                        + " or something\",\"lastUpdatedAt\":0.0},\"requestType\":{\"requestTypeId\":1,\"type\":\"UNSPECIFIED\",\"description\":\"The"
-                                        + " characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"requestCategory\":{\"requestCategoryId"
-                                        + "\":1,\"category\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt"
-                                        + "\":0.0},\"requestFor\":{\"requestForId\":1,\"description\":\"The characteristics of someone or something\","
-                                        + "\"lastUpdatedAt\":0.0,\"for\":\"UNSPECIFIED\"},\"city\":\"Oxford\",\"zipCode\":\"21654\",\"requestDescription\":\"Request"
-                                        + " Description\",\"audioRequestDescription\":\"Audio Request Description\",\"submittedAt\":0.0,\"leadVolunteerUserId"
-                                        + "\":1,\"servicedAt\":0.0,\"lastUpdatedAt\":0.0},\"timestamp\":0.0}"));
+                                "{\"success\":true,\"statusCode\":1,\"saayamCode\":\"Saayam Code\",\"message\":\"Not all who wander are lost\",\"data\":{\"requestId\":\"42\",\"requesterId\":\"42\",\"requestStatus\":{\"requestStatusId\":1,\"status\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"requestPriority\":{\"priorityId\":1,\"priority\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"requestType\":{\"requestTypeId\":1,\"type\":\"UNSPECIFIED\",\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0},\"helpCategory\":{\"catId\":\"1\",\"catName\":\"FOOD_AND_ESSENTIALS_SUPPORT\",\"catDesc\":\"Support for food and essential items\"},\"requestFor\":{\"requestForId\":1,\"description\":\"The characteristics of someone or something\",\"lastUpdatedAt\":0.0,\"for\":\"UNSPECIFIED\"},\"city\":\"Oxford\",\"zipCode\":\"21654\",\"requestDescription\":\"Request Description\",\"audioRequestDescription\":\"Audio Request Description\",\"submittedAt\":0.0,\"servicedAt\":0.0,\"lastUpdatedAt\":0.0,\"requestIsLeadVol\":null,\"requestSubject\":null,\"leadVolunteerUserId\":\"1\",\"helpingVolunteerUserIds\":[]},\"timestamp\":0.0}"));
     }
 
     /**

@@ -1,0 +1,47 @@
+%% Secondary summary only. The intentionally laid-out Draw.io file is primary.
+flowchart LR
+  classDef implemented fill:#D5E8D4,stroke:#2E7D32,stroke-width:2px,color:#263238
+  classDef partial fill:#FFF2CC,stroke:#B7791F,stroke-width:2px,color:#263238
+  classDef intended fill:#DAE8FC,stroke:#3B6EA8,stroke-width:2px,stroke-dasharray:7 5,color:#263238
+  classDef external fill:#E1D5E7,stroke:#7E57A3,stroke-width:2px,color:#263238
+  classDef failure fill:#F8CECC,stroke:#B85450,stroke-width:2px,color:#263238
+
+  R["Requester submits help request"]:::external --> API["POST /requests"]:::implemented
+  API --> V{"DTO and reference validation succeeds?"}:::implemented
+  V -->|No| E["Localized 4xx / 5xx response"]:::failure
+  V -->|Yes| B["Build request with CREATED status"]:::implemented
+  B --> DB["Persist request and optional guest details"]:::implemented
+  DB --> RESP["201 response with request ID"]:::implemented
+
+  DB -.-> EVT["Publish REQUEST_CREATED after commit"]:::partial
+  EVT -.-> NOTIFY["SQS → Lambda → SES / SNS"]:::partial
+  EVT -.-> SF["Start Step Functions execution"]:::partial
+  SF -.-> PENDING["PENDING_VOLUNTEER_ASSIGNMENT"]:::intended
+
+  PENDING -.-> DISCOVER["Volunteer discovery and profile matching"]:::external
+  DISCOVER -.-> MATCH{"Matches found?"}:::intended
+  MATCH -.->|Yes| BATCH["Notify next X volunteers"]:::external
+  BATCH -.-> ACCEPT{"Acceptance within Y minutes?"}:::intended
+  ACCEPT -.->|No; more candidates| BATCH
+  MATCH -.->|No| AI["AI fallback"]:::external
+  ACCEPT -.->|No; exhausted| AI
+  AI -.-> AI_OK{"Usable AI response?"}:::intended
+  AI_OK -.->|No| FAIL["Notify processing failure"]:::failure
+  AI_OK -.->|Yes| COMPLETE["COMPLETED"]:::intended
+
+  ACCEPT -.->|Yes| OTP["Generate and deliver OTP / confirmation"]:::intended
+  OTP -.-> HS{"Requester and volunteer confirm?"}:::intended
+  HS -.->|Yes| ASSIGN["Persist LEAD assignment"]:::partial
+  ASSIGN -.-> PROGRESS["IN_PROGRESS"]:::intended
+  PROGRESS -.-> MODE{"Lead works alone, with helpers, or with organization"}:::intended
+  MODE -.-> WORK["Collaborate until fulfilled"]:::intended
+  WORK -.-> COMPLETE
+  COMPLETE -.-> CN["Completion notifications"]:::external
+  CN -.-> RATE["Independent requester / volunteer ratings"]:::intended
+
+  API --> OPS{"Existing request operation"}:::implemented
+  OPS --> READ["Read / list; exclude DELETED"]:::implemented
+  OPS --> UPDATE["Update fields; status unchanged"]:::implemented
+  OPS --> CANCEL["Cancel → CANCELLED"]:::implemented
+  CANCEL --> RESUME["Resume → CREATED"]:::implemented
+  OPS --> DELETE["Delete → DELETED terminal"]:::implemented

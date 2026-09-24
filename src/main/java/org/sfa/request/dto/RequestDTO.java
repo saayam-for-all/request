@@ -5,8 +5,10 @@ import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 
 @Data
 @NoArgsConstructor
@@ -61,4 +63,8 @@ public class RequestDTO {
 
     @NotNull(message = "Request for cannot be null")
     private RequestForDTO requestFor;
+
+    @Valid
+    @ToString.Exclude
+    private List<ReqAddInfoDTO> additionalFields;
 }

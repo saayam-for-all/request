@@ -17,6 +17,8 @@ import java.util.stream.Collectors;
 @Service
 public class MetadataServiceImpl implements MetadataService {
 
+    private static final String ACTIVE_STATUS = "active";
+
     private final ReqAddInfoMetadataRepository metadataRepo;
     private final ListItemMetadataRepository listItemRepo;
 
@@ -28,14 +30,16 @@ public class MetadataServiceImpl implements MetadataService {
 
     @Override
     public List<ReqAddInfoMetadataDto> getMetadataByCategoryId(String catId) {
-        List<ReqAddInfoMetadata> fields = metadataRepo.findByCatId(catId);
+        List<ReqAddInfoMetadata> fields = metadataRepo.findByCatIdAndStatus(catId, ACTIVE_STATUS);
         fields.sort(Comparator.comparing(ReqAddInfoMetadata::getFieldId, new NaturalOrderComparator()));
         return fields.stream().map(this::mapToDtoNoItems).collect(Collectors.toList());
     }
 
     @Override
     public List<ReqAddInfoMetadataTreeDto> getMetadataCategoryTree() {
-        List<ReqAddInfoMetadata> all = metadataRepo.findAll();
+        List<ReqAddInfoMetadata> all = new ArrayList<>(metadataRepo.findAll().stream()
+                .filter(metadata -> ACTIVE_STATUS.equalsIgnoreCase(metadata.getStatus()))
+                .toList());
 
         all.sort(Comparator
                 .comparing(ReqAddInfoMetadata::getCatId, new NaturalOrderComparator())
@@ -62,7 +66,7 @@ public class MetadataServiceImpl implements MetadataService {
 
     @Override
     public ReqAddInfoMetadataTreeDto getMetadataFormByCategoryId(String catId) {
-        List<ReqAddInfoMetadata> fields = metadataRepo.findByCatId(catId);
+        List<ReqAddInfoMetadata> fields = metadataRepo.findByCatIdAndStatus(catId, ACTIVE_STATUS);
 
         fields.sort(Comparator.comparing(ReqAddInfoMetadata::getFieldId, new NaturalOrderComparator()));
 

@@ -8,10 +8,8 @@ import lombok.*;
 @AllArgsConstructor
 public class GuestDetailsDTO {
 
-    @NotBlank(message = "First name is required")
     private String reqFname;
 
-    @NotBlank(message = "Last name is required")
     private String reqLname;
 
     @Email(message = "Invalid email format")

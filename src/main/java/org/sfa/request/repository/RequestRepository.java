@@ -11,6 +11,9 @@ import org.springframework.stereotype.Repository;
 import java.util.Optional;
 import org.sfa.request.dto.GetHelpRequestsDTO;
 import org.sfa.request.dto.AdminRequestDTO;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 /**
  * ClassName: RequestRepository
@@ -113,6 +116,25 @@ public interface RequestRepository extends JpaRepository<Request, String> {
 Page<AdminRequestDTO> findAdminRequests(
         @Param("deletedStatusId") int deletedStatusId,
         Pageable pageable
+);
+
+@Modifying
+@Query("""
+    UPDATE Request r
+    SET r.leadVolunteerId = :volunteerId,
+        r.requestStatus = (
+            SELECT rs
+            FROM RequestStatus rs
+            WHERE rs.requestStatusId = 3
+        ),
+        r.lastUpdatedAt = CURRENT_TIMESTAMP
+    WHERE r.requestId = :requestId
+      AND r.requestStatus.requestStatusId = 2
+      AND r.leadVolunteerId IS NULL
+    """)
+int assignLeadVolunteerIfUnassigned(
+        @Param("requestId") String requestId,
+        @Param("volunteerId") String volunteerId
 );
 
 }

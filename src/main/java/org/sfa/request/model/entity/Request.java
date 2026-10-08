@@ -5,6 +5,8 @@ import jakarta.persistence.*;
 
 import java.io.Serializable;
 import java.time.ZonedDateTime;
+import org.locationtech.jts.geom.Point;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 /**
  * ClassName: Request
@@ -97,8 +99,9 @@ public class Request implements Serializable {
     )
     private RequestFor requestFor;
 
-    @Column(name = "req_loc", columnDefinition = "VARCHAR(125)")
-    private String requestLocation;
+    @JsonIgnore
+    @Column(name = "req_loc", columnDefinition = "geometry(Point,4326)")
+    private Point requestLocation;
 
     @Column(name = "iscalamity")
     private Boolean isCalamity;
@@ -129,6 +132,9 @@ public class Request implements Serializable {
 
     @Column(name = "serviced_date", columnDefinition = "TIMESTAMP")
     private ZonedDateTime servicedAt;
+
+    @Column(name = "deletion_reason", columnDefinition = "VARCHAR(255)")
+    private String deletionReason;
 
     @Column(name = "last_updated_at", columnDefinition = "TIMESTAMP")
     private ZonedDateTime lastUpdatedAt;

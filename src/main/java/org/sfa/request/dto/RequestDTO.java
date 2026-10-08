@@ -31,8 +31,9 @@ public class RequestDTO {
     @Size(max = 255, message = "Audio request description must not exceed 255 characters")
     private String audioRequestDescription;
 
-    @Size(max = 125, message = "Request location must not exceed 125 characters")
-    private String requestLocation;
+    private Double latitude;
+
+    private Double longitude;
 
     // NEW: matches iscalamity in DB
     private Boolean isCalamity;
@@ -67,4 +68,8 @@ public class RequestDTO {
 
     @JsonProperty("additionalFields")
     private Map<String, Object> additionalFields;
+
+    @Valid
+    @Size(max = 5, message = "Maximum 5 attachments allowed")
+    private List<FileAttachmentDTO> files;
 }

@@ -27,6 +27,9 @@ public enum SaayamStatusCode {
     REQUEST_RESUMED("SAAYAM-1405", "Request resumed"),
     REQUESTS_RETRIEVED("SAAYAM-1406", "Requests retrieved successfully"),
     REQUEST_SENT_TO_QUEUE("SAAYAM-1407", "Request sent to queue"),
+    REQUEST_VOLUNTEER_ACCEPTED("SAAYAM-1408", "Volunteer accepted request"),
+    REQUEST_VOLUNTEER_DECLINED("SAAYAM-1409", "Volunteer declined request"),
+
 
     // Client error codes (1500-1549)
     BAD_REQUEST("SAAYAM-1500", "Bad request"),
@@ -49,7 +52,7 @@ public enum SaayamStatusCode {
     DATABASE_ERROR("SAAYAM-1551", "Database error"),
     EXTERNAL_SERVICE_ERROR("SAAYAM-1552", "External service error"),
     UNEXPECTED_ERROR("SAAYAM-1553", "Unexpected error occurred");
-
+    
     private final String code;
     private final String defaultMessage;
 }

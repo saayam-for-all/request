@@ -17,6 +17,7 @@ import org.sfa.request.exception.types.NotFoundException;
 import org.sfa.request.model.entity.*;
 import org.sfa.request.model.enums.RequestStatusEnum;
 import org.sfa.request.repository.*;
+import org.sfa.request.model.enums.RequestTypeEnum;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
 import org.sfa.request.service.api.RequestService;
@@ -30,6 +31,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import org.sfa.request.dto.NearestVolunteerDto;
+import org.sfa.request.dto.StepFunctionInputDTO;
+import org.sfa.request.dto.UpdateVolunteerLocationResponse;
+import org.sfa.request.service.api.GeoSpatialService;
+import org.sfa.request.service.api.NotificationLambdaService;
+import org.sfa.request.service.api.StepFunctionService;
 
 
 import java.io.File;
@@ -49,6 +57,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import org.springframework.beans.factory.annotation.Value;
 import lombok.extern.slf4j.Slf4j;
+import org.sfa.request.dto.FileAttachmentDTO;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.PrecisionModel;
+
+
+import org.sfa.request.dto.VolunteerRequestActionDTO;
+import org.sfa.request.model.entity.VolunteerAssigned;
+
 /**
  * ClassName: RequestServiceImpl
  * Package: org.sfa.request.service.impl
@@ -99,6 +117,10 @@ public class RequestServiceImpl implements RequestService {
     private final ReqAddInfoRepository reqAddInfoRepository;
     private final UserRepository userRepository;
     private final UserLambdaService userLambdaService;
+    private final GeoSpatialService geoSpatialService;
+    private final NotificationLambdaService notificationLambdaService;
+    private final StepFunctionService stepFunctionService;
+    private final VolunteerAssignedRepository volunteerAssignedRepository;
 
     private final S3Client s3Client;
     @Value("${saayam.s3.buckets.usPrivate}")
@@ -216,7 +238,20 @@ public class RequestServiceImpl implements RequestService {
                     return null;
                 });
             }
+            if (requestDTO.getFiles() != null && !requestDTO.getFiles().isEmpty()) {
+                withRetry("uploadAttachmentsOnCreate", 3, () -> {
+                attachFilesToRequest(
+                        savedRequest,
+                        Collections.emptyList(),
+                        0,
+                        requestDTO.getFiles(),
+                        locale
+                );
+                return null;
+                });
+                }
 
+            handleInPersonVolunteerMatching(savedRequest, requestDTO);
             logger.info("Created request with ID: {}", savedRequest.getRequestId());
             String message = messageSource.getMessage("success.requestCreated", new Object[]{savedRequest.getRequestId()}, locale);
             return SaayamResponse.success(SaayamStatusCode.REQUEST_CREATED, message, savedRequest);
@@ -411,6 +446,43 @@ public class RequestServiceImpl implements RequestService {
 
     @Override
     @Transactional
+    public SaayamResponse<Void> deleteRequest(String creatorId, String requestId, String deletionReason, Locale locale) {
+        if (creatorId == null || creatorId.isBlank()) {
+            throw new InvalidRequestException(
+                    messageSource.getMessage("error.missingCreatorId", null, locale));
+        }
+        if (requestId == null || requestId.isBlank()) {
+            throw new InvalidRequestException(
+                    messageSource.getMessage("error.missingRequestId", null, locale));
+        }
+        if (deletionReason == null || deletionReason.isBlank()) {
+            throw new InvalidRequestException(
+                    messageSource.getMessage("error.missingDeletionReason", null, locale));
+        }
+
+        // Ownership check: the lookup is scoped to the requester, so a request that
+        // belongs to somebody else is reported as not found rather than deleted.
+        Request request = findRequestIncludingDeleted(creatorId, requestId, locale);
+
+        if (request.getRequestStatus().getRequestStatusId() == RequestStatusEnum.DELETED.getId()) {
+            throw new ConflictException(
+                    messageSource.getMessage("error.requestAlreadyDeleted", new Object[]{requestId}, locale));
+        }
+
+        RequestStatus deletedStatus = getRequestStatus(RequestStatusEnum.DELETED.getId(), locale);
+        request.setRequestStatus(deletedStatus);
+        request.setDeletionReason(deletionReason);
+        request.setLastUpdatedAt(ZonedDateTime.now());
+        requestRepository.save(request);
+
+        logger.info("Soft-deleted request {} for requester {} (reason: {})", requestId, creatorId, deletionReason);
+        String message = messageSource.getMessage("success.requestDeleted", new Object[]{requestId}, locale);
+        return SaayamResponse.success(SaayamStatusCode.REQUEST_DELETED, message, null);
+    }
+    
+    
+    /*@Override
+    @Transactional
     public SaayamResponse<Void> deleteRequest(String creatorId, String requestId, Locale locale) {
         Request request = findRequestIncludingDeleted(creatorId, requestId, locale);
 
@@ -427,7 +499,7 @@ public class RequestServiceImpl implements RequestService {
             throw new ConflictException(
                     messageSource.getMessage("error.requestAlreadyDeleted", new Object[]{requestId}, locale));
         }
-    }
+    }*/
 
     @Override
     @Transactional
@@ -564,7 +636,19 @@ public class RequestServiceImpl implements RequestService {
                 .helpCategory(helpCategory)
                 .requestFor(requestFor)
                 .isLeadVolunteer(isLeadVolunteer)
-                .requestLocation(requestDTO.getRequestLocation())
+                .leadVolunteerId(
+                        requestDTO.getIsLeadVolunteer() != null
+                        && requestDTO.getIsLeadVolunteer() == 1
+                        ? creatorId
+                        : null
+                )
+
+                .requestLocation(
+                        createPoint(
+                                requestDTO.getLatitude(),
+                                requestDTO.getLongitude()
+                        )
+                )
                 .requestSubject(requestDTO.getRequestSubject())
                 .requestDescription(requestDTO.getRequestDescription())
                 .audioRequestDescription(requestDTO.getAudioRequestDescription())
@@ -628,8 +712,16 @@ public class RequestServiceImpl implements RequestService {
                         )
                 );
 
-        Optional.ofNullable(requestUpdateDTO.getRequestLocation())
-                .ifPresent(request::setRequestLocation);
+        if (requestUpdateDTO.getLatitude() != null
+        || requestUpdateDTO.getLongitude() != null) {
+
+    request.setRequestLocation(
+            createPoint(
+                    requestUpdateDTO.getLatitude(),
+                    requestUpdateDTO.getLongitude()
+            )
+    );
+}
 
         Optional.ofNullable(requestUpdateDTO.getRequestSubject())
                 .ifPresent(request::setRequestSubject);
@@ -647,11 +739,20 @@ public class RequestServiceImpl implements RequestService {
                 .ifPresent(request::setRequestDocumentLink);
 
         Optional.ofNullable(requestUpdateDTO.getIsLeadVolunteer())
-                .ifPresent(volId ->
-                        request.setIsLeadVolunteer(
-                                getIsLeadVolunteer(volId, locale)
-                        )
+        .ifPresent(volId -> {
+
+            request.setIsLeadVolunteer(
+                    getIsLeadVolunteer(volId, locale)
+            );
+
+            if (volId == 1) {
+                request.setLeadVolunteerId(
+                        requestUpdateDTO.getCreatorId()
                 );
+            } else {
+                request.setLeadVolunteerId(null);
+            }
+        });
 
         Optional.ofNullable(requestUpdateDTO.getServicedAt())
                 .ifPresent(request::setServicedAt);
@@ -897,6 +998,144 @@ public class RequestServiceImpl implements RequestService {
                     .build());
         }
     }
+
+    private Point createPoint(Double latitude, Double longitude) {
+
+    if (latitude == null && longitude == null) {
+        return null;
+    }
+
+    if (latitude == null || longitude == null) {
+        throw new InvalidRequestException(
+                "Both latitude and longitude are required"
+        );
+    }
+
+    if (latitude < -90 || latitude > 90) {
+        throw new InvalidRequestException(
+                "Latitude must be between -90 and 90"
+        );
+    }
+
+    if (longitude < -180 || longitude > 180) {
+        throw new InvalidRequestException(
+                "Longitude must be between -180 and 180"
+        );
+    }
+
+    GeometryFactory geometryFactory =
+            new GeometryFactory(
+                    new PrecisionModel(),
+                    4326
+            );
+
+    Point point = geometryFactory.createPoint(
+            new Coordinate(longitude, latitude)
+    );
+
+    point.setSRID(4326);
+
+    return point;
+}
+
+    @Override
+@Transactional
+public SaayamResponse<String> processVolunteerAction(
+        VolunteerRequestActionDTO actionDTO,
+        Locale locale) {
+
+    if (actionDTO == null
+            || actionDTO.getRequestId() == null
+            || actionDTO.getRequestId().isBlank()
+            || actionDTO.getVolunteerId() == null
+            || actionDTO.getVolunteerId().isBlank()
+            || actionDTO.getAction() == null
+            || actionDTO.getAction().isBlank()) {
+
+        throw new InvalidRequestException(
+                "requestId, volunteerId and action are required"
+        );
+    }
+
+    String requestId = actionDTO.getRequestId().trim();
+    String volunteerId = actionDTO.getVolunteerId().trim();
+    String action = actionDTO.getAction().trim().toUpperCase();
+
+    // ----------------------------
+    // DECLINE
+    // ----------------------------
+    if ("DECLINE".equals(action)) {
+
+        logger.info(
+                "Volunteer {} declined request {}",
+                volunteerId,
+                requestId
+        );
+
+        return SaayamResponse.success(
+                SaayamStatusCode.REQUEST_VOLUNTEER_DECLINED,
+                "Volunteer declined request",
+                "DECLINED"
+        );
+    }
+
+    if (!"ACCEPT".equals(action)) {
+        throw new InvalidRequestException(
+                "Action must be ACCEPT or DECLINE"
+        );
+    }
+
+    // ----------------------------
+    // ACCEPT - atomic claim
+    // ----------------------------
+    int updated =
+            requestRepository.assignLeadVolunteerIfUnassigned(
+                    requestId,
+                    volunteerId
+            );
+
+    // Someone else already accepted
+    if (updated == 0) {
+
+        logger.info(
+                "Volunteer {} could not accept request {} because it is already assigned",
+                volunteerId,
+                requestId
+        );
+
+        throw new ConflictException(
+                "Request is already assigned to another volunteer"
+        );
+    }
+
+    LocalDateTime now =
+            LocalDateTime.now(ZoneOffset.UTC);
+
+    VolunteerAssigned assignment =
+            VolunteerAssigned.builder()
+                    .requestId(requestId)
+                    .volunteerId(volunteerId)
+                    .volunteerType("LEAD")
+                    .lastUpdateDate(now)
+                    .lastUpdatedAt(now)
+                    .build();
+
+    volunteerAssignedRepository.save(assignment);
+
+    logger.info(
+            "Volunteer {} accepted request {} and became lead volunteer",
+            volunteerId,
+            requestId
+    );
+
+    return SaayamResponse.success(
+            SaayamStatusCode.REQUEST_VOLUNTEER_ACCEPTED,
+            "Volunteer assigned successfully",
+            "ACCEPTED"
+    );
+}
+
+
     //    surajAlluri_filesAttachment_53
     @Transactional
     public List<String> uploadMultipleAttachments(
@@ -1067,6 +1306,94 @@ public class RequestServiceImpl implements RequestService {
             return false;
         }
     }
+
+    private void attachFilesToRequest(
+        Request request,
+        List<String> existing,
+        int existingCount,
+        List<FileAttachmentDTO> files,
+        Locale locale) {
+
+    if (files == null || files.isEmpty()) {
+        return;
+    }
+
+    if (existingCount + files.size() > 5) {
+        throw new InvalidRequestException("Maximum 5 attachments allowed");
+    }
+
+    List<String> allowed = Arrays.stream(allowedMimeCsv.split(","))
+            .map(String::trim)
+            .toList();
+
+    List<String> newPaths = new ArrayList<>();
+
+    for (FileAttachmentDTO file : files) {
+
+        String fileNameRaw = file.getFileName();
+        String base64 = file.getBase64();
+        String contentType = file.getContentType();
+
+        if (fileNameRaw == null || base64 == null || contentType == null) {
+            throw new InvalidRequestException("Invalid file payload");
+        }
+
+        byte[] fileBytes;
+
+        try {
+            fileBytes = Base64.getDecoder().decode(base64);
+        } catch (Exception e) {
+            throw new InvalidRequestException("Invalid base64 format");
+        }
+
+        if (fileBytes.length > maxBytes) {
+            throw new InvalidRequestException("File size exceeds limit");
+        }
+
+        if (!allowed.contains(contentType)) {
+            throw new InvalidRequestException("Invalid file type");
+        }
+
+        String cleanFileName = fileNameRaw
+                .replaceAll("\\s+", "_")
+                .replaceAll("[^a-zA-Z0-9._-]", "");
+
+        String finalFileName =
+                request.getRequestId() + "_" +
+                System.currentTimeMillis() + "_" +
+                cleanFileName;
+
+        String key =
+                "requests/" +
+                request.getRequestId() +
+                "/helpRequestFiles/" +
+                finalFileName;
+
+        try {
+            s3Client.putObject(
+                    PutObjectRequest.builder()
+                            .bucket(bucket)
+                            .key(key)
+                            .contentType(contentType)
+                            .build(),
+                    RequestBody.fromBytes(fileBytes)
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to upload file", e);
+        }
+
+        String s3Path = "s3://" + bucket + "/" + key;
+        newPaths.add(s3Path);
+    }
+
+    List<String> allPaths = new ArrayList<>(existing);
+    allPaths.addAll(newPaths);
+
+    request.setRequestDocumentLink(toJson(allPaths));
+    requestRepository.save(request);
+}
+
+
     @Transactional
     public List<String> uploadBase64Attachments(
             String requesterId,
@@ -1135,4 +1462,108 @@ public class RequestServiceImpl implements RequestService {
         requestRepository.save(request);
         return responseUrls;
     }
+        private void handleInPersonVolunteerMatching(Request savedRequest, RequestDTO requestDTO) {
+                Integer requestTypeId =
+                savedRequest.getRequestType() != null
+                    ? savedRequest.getRequestType().getRequestTypeId()
+                    : null;
+
+                if (requestTypeId == null
+                        || requestTypeId != RequestTypeEnum.IN_PERSON.getId()) {
+
+                        logger.info(
+                                "Skipping volunteer matching for requestId={}, requestTypeId={}",
+                                savedRequest.getRequestId(),
+                                requestTypeId
+                        );
+
+                        return;
+                }
+
+                Double latitude = requestDTO.getLatitude();
+Double longitude = requestDTO.getLongitude();
+
+if (latitude == null || longitude == null) {
+
+    logger.info(
+            "No coordinates available for requestId={}",
+            savedRequest.getRequestId()
+    );
+
+    return;
+}
+
+                try {
+                        RequestStatus pendingStatus =
+        requestStatusRepository.findById(
+                RequestStatusEnum.PENDING_VOLUNTEER_ASSIGNMENT.getId()
+        ).orElseThrow(() ->
+                new IllegalStateException(
+                        "PENDING_VOLUNTEER_ASSIGNMENT status not found"
+                )
+        );
+
+savedRequest.setRequestStatus(pendingStatus);
+savedRequest.setLastUpdatedAt(ZonedDateTime.now());
+
+requestRepository.save(savedRequest);
+
+logger.info(
+        "Request {} moved to PENDING_VOLUNTEER_ASSIGNMENT",
+        savedRequest.getRequestId()
+);
+
+                        StepFunctionInputDTO input =
+                                StepFunctionInputDTO.builder()
+                                        .requestId(savedRequest.getRequestId())
+
+                                        .requesterId(savedRequest.getCreatorId())
+
+                                        .requestTypeId(requestTypeId)
+
+                                        .helpCategoryId(
+                                                savedRequest.getHelpCategory() != null
+                                                        ? savedRequest.getHelpCategory().getCatId()
+                                                        : null
+                                        )
+
+                                        .helpCategoryName(
+                                                savedRequest.getHelpCategory() != null
+                                                        ? savedRequest.getHelpCategory().getCatName()
+                                                        : null
+                                        )
+
+                                        .requestSubject(savedRequest.getRequestSubject())
+                                        .requestDescription(savedRequest.getRequestDescription())
+
+                                        .requestLocation(null)
+
+                                        .latitude(requestDTO.getLatitude())
+                                        .longitude(requestDTO.getLongitude())
+
+                                        .volunteerLimit(10)
+                                        .volunteerRadius(25.0)
+                                        .distanceUnit("km")
+                                        .build();
+
+                        String executionArn =
+                                stepFunctionService.startExecution(input);
+
+                        logger.info(
+                                "Volunteer matching workflow started for requestId={}, executionArn={}",
+                                savedRequest.getRequestId(),
+                                executionArn
+                        );
+
+                } catch (Exception ex) {
+
+                        logger.warn(
+                                "Volunteer matching workflow failed for requestId={}: {}",
+                                savedRequest.getRequestId(),
+                                ex.getMessage(),
+                                ex
+                        );
+                }
+        }
+
 }

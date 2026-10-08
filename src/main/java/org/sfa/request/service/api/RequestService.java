@@ -8,6 +8,7 @@ import org.sfa.request.dto.GetHelpRequestsDTO;
 import org.springframework.data.domain.Pageable;
 import org.sfa.request.dto.RequestUpdateDTO;
 import org.sfa.request.dto.AdminRequestDTO;
+import org.sfa.request.dto.VolunteerRequestActionDTO;
 
 import java.util.Locale;
 
@@ -48,7 +49,7 @@ public interface RequestService {
 
     SaayamResponse<Request> updateRequest( RequestUpdateDTO requestUpdateDTO, Locale locale);
 
-    SaayamResponse<Void> deleteRequest(String requesterId, String requestId, Locale locale);
+    SaayamResponse<Void> deleteRequest(String creatorId, String requestId, String deletionReason, Locale locale);
 
     SaayamResponse<Request> cancelRequest(String requesterId, String requestId, Locale locale);
 
@@ -68,6 +69,11 @@ public interface RequestService {
 
     SaayamResponse<PagedResponse<AdminRequestDTO>> getAdminRequests(
         Pageable pageable,
+        Locale locale
+    );
+
+    SaayamResponse<String> processVolunteerAction(
+        VolunteerRequestActionDTO actionDTO,
         Locale locale
     );
 }

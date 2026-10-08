@@ -60,8 +60,9 @@ public class UpdateRequestHandler extends BaseRequestHandler<APIGatewayProxyRequ
             log.info("Update operation result: {}", response);
 
             return new APIGatewayProxyResponseEvent()
-                    .withStatusCode(HttpStatus.OK.value())
-                    .withBody(objectMapper.writeValueAsString(response));
+            .withStatusCode(HttpStatus.OK.value())
+            .withHeaders(getCorsHeaders())
+            .withBody(objectMapper.writeValueAsString(response));
 
         } catch (NotFoundException e) {
 

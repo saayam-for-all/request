@@ -255,11 +255,12 @@ public ResponseEntity<SaayamResponse<PagedResponse<AdminRequestDTO>>> getAdminRe
     @DeleteMapping("/{requestId}")
     public ResponseEntity<SaayamResponse<Void>> deleteRequest(
             @PathVariable @NotNull String requestId,
-            @RequestParam @NotNull String requesterId,
+            @RequestParam @NotNull String creatorId,
+            @RequestParam @NotNull String deletionReason,
             HttpServletRequest request
     ) {
         Locale locale = localeResolver.resolveLocale(request);
-        SaayamResponse<Void> response = requestService.deleteRequest(requesterId, requestId, locale);
+        SaayamResponse<Void> response = requestService.deleteRequest(creatorId, requestId, deletionReason, locale);
         return ResponseEntity.ok(response);
     }
 

@@ -7,6 +7,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.sfa.request.dto.RequestSqsDTO;
 import org.sfa.request.exception.types.InvalidRequestException;
 import org.sfa.request.model.entity.Request;
+import org.locationtech.jts.geom.Point;
 
 /**
  * ClassName: JsonConverter
@@ -35,7 +36,15 @@ public class JsonConverter {
         dto.setRequestType(request.getRequestType().getType());
         dto.setHelpCategory(request.getHelpCategory().getCatName());
         dto.setRequestFor(request.getRequestFor().getRequestFor());
-        dto.setRequestLocation(request.getRequestLocation());
+        Point location = request.getRequestLocation();
+
+if (location != null) {
+    dto.setRequestLocation(
+            "POINT(" + location.getX() + " " + location.getY() + ")"
+    );
+} else {
+    dto.setRequestLocation(null);
+}
         dto.setRequestSubject(request.getRequestSubject());
         dto.setRequestDescription(request.getRequestDescription());
         dto.setAudioRequestDescription(request.getAudioRequestDescription());

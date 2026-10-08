@@ -12,6 +12,9 @@ import org.sfa.request.response.SaayamResponse;
 import org.sfa.request.service.api.RequestService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.Map;
 
 import java.util.Locale;
 
@@ -32,12 +35,26 @@ public class DeleteRequestHandler extends BaseRequestHandler<APIGatewayProxyRequ
     @Override
     public APIGatewayProxyResponseEvent handleRequest(APIGatewayProxyRequestEvent requestEvent, Context lambdaContext) {
         try {
-            String requesterId = requestEvent.getPathParameters().get("requesterId");
-            String requestId = requestEvent.getPathParameters().get("requestId");
+            Map<String, Object> body = objectMapper.readValue(
+            requestEvent.getBody(),
+            new TypeReference<Map<String, Object>>() {}
+            );
+            String creatorId = body.get("creatorId") != null
+            ? body.get("creatorId").toString()
+            : null;
+
+            String requestId = body.get("requestId") != null
+            ? body.get("requestId").toString()
+            : null;
+
+            String deletionReason = body.get("deletionReason") != null
+            ? body.get("deletionReason").toString()
+            : null;
+
             Locale locale = getLocaleFromRequest(requestEvent);
 
-            log.info("Attempting to delete request: {} for requester: {}", requestId, requesterId);
-            SaayamResponse<Void> result = requestService.deleteRequest(requesterId, requestId, locale);
+            log.info("Attempting to delete request: {} for creator: {}", requestId, creatorId);
+            SaayamResponse<Void> result = requestService.deleteRequest(creatorId, requestId, deletionReason, locale);
 
             log.info("Delete operation result: {}", result);
             return new APIGatewayProxyResponseEvent()

@@ -185,7 +185,7 @@ class RequestControllerTest {
         SaayamResponse<Void> buildResult = successResult
                 .timestamp(LocalDate.of(1970, 1, 1).atStartOfDay().atZone(ZoneOffset.UTC))
                 .build();
-        when(requestService.deleteRequest(Mockito.<String>any(), Mockito.<String>any(), Mockito.<Locale>any()))
+        when(requestService.deleteRequest(Mockito.<String>any(), Mockito.<String>any(),  Mockito.<String>any(), Mockito.<Locale>any()))
                 .thenReturn(buildResult);
         when(localeResolver.resolveLocale(Mockito.<HttpServletRequest>any())).thenReturn(Locale.getDefault());
         MockHttpServletRequestBuilder requestBuilder = MockMvcRequestBuilders

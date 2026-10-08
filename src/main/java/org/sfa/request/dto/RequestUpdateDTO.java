@@ -31,8 +31,9 @@ public class RequestUpdateDTO {
     @Size(max = 255, message = "Audio request description must not exceed 255 characters")
     private String audioRequestDescription;
 
-    @Size(max = 125, message = "Request location must not exceed 125 characters")
-    private String requestLocation;
+    private Double latitude;
+
+    private Double longitude;
 
     private Boolean isCalamity;
 

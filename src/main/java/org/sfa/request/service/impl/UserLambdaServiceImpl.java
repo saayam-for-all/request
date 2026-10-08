@@ -180,11 +180,6 @@ public class UserLambdaServiceImpl implements UserLambdaService {
                 guestDetails.getReqPrefLang()
         );
 
-        body.put(
-                "location",
-                requestDTO.getRequestLocation()
-        );
-
         log.info(
                 "createUserVolunteer request body: {}",
                 body

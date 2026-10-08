@@ -30,8 +30,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-
+import java.util.stream.Collectors;
 import java.io.File;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -120,6 +119,11 @@ public class RequestServiceImpl implements RequestService {
                     messageSource.getMessage("error.missingRequesterId", null, locale)
             );
         }
+
+        List<ValidatedFile> validatedFiles =
+                (requestDTO.getFiles() == null || requestDTO.getFiles().isEmpty())
+                        ? List.of()
+                        : validateAttachments(requestDTO.getFiles(), 0);
 
         validateEnumIds(requestDTO, locale);
 
@@ -218,11 +222,8 @@ public class RequestServiceImpl implements RequestService {
                 });
             }
 
-            if (requestDTO.getFiles() != null && !requestDTO.getFiles().isEmpty()) {
-                withRetry("uploadAttachmentsOnCreate", 3, () -> {
-                    attachFilesToRequest(savedRequest, Collections.emptyList(), 0, requestDTO.getFiles(), locale);
-                    return null;
-                });
+            if (!validatedFiles.isEmpty()) {
+                uploadValidatedFiles(savedRequest, Collections.emptyList(), validatedFiles);
             }
 
             logger.info("Created request with ID: {}", savedRequest.getRequestId());
@@ -1094,7 +1095,8 @@ public class RequestServiceImpl implements RequestService {
                 .map(this::toFileAttachmentDTO)
                 .toList();
 
-        return attachFilesToRequest(request, existing, validExisting.size(), fileDTOs, locale);
+        List<ValidatedFile> validated = validateAttachments(fileDTOs, validExisting.size());
+        return uploadValidatedFiles(request, existing, validated);
     }
 
     private FileAttachmentDTO toFileAttachmentDTO(Map<String, String> file) {
@@ -1105,68 +1107,78 @@ public class RequestServiceImpl implements RequestService {
         );
     }
 
-    private List<String> attachFilesToRequest(
-            Request request,
-            List<String> existingPaths,
-            int existingValidCount,
-            List<FileAttachmentDTO> files,
-            Locale locale
-    ) {
+    private record ValidatedFile(String cleanFileName, String contentType, byte[] bytes) {}
+
+    private List<ValidatedFile> validateAttachments(List<FileAttachmentDTO> files, int existingValidCount) {
         if (files == null || files.isEmpty()) {
             throw new InvalidRequestException("No files provided");
         }
         if (existingValidCount + files.size() > 5) {
             throw new InvalidRequestException("Maximum 5 attachments allowed");
         }
-        List<String> allowed = Arrays.stream(allowedMimeCsv.split(","))
-                .map(String::trim)
-                .toList();
+        Set<String> allowed = Arrays.stream(allowedMimeCsv.split(","))
+                .map(String::trim).map(String::toLowerCase).collect(Collectors.toSet());
 
-        List<String> allPaths = new ArrayList<>(existingPaths);
-        List<String> responseUrls = new ArrayList<>();
-        String requestId = request.getRequestId();
-
-        for (FileAttachmentDTO file : files) {
-            String fileNameRaw = file.getFileName();
-            String base64 = file.getBase64();
-            String contentType = file.getContentType();
-            if (fileNameRaw == null || fileNameRaw.isBlank()
-                    || base64 == null || base64.isBlank()
-                    || contentType == null || contentType.isBlank()) {
+        List<ValidatedFile> result = new ArrayList<>();
+        for (FileAttachmentDTO f : files) {
+            if (f.getFileName() == null || f.getFileName().isBlank()
+                    || f.getBase64() == null || f.getBase64().isBlank()
+                    || f.getContentType() == null || f.getContentType().isBlank()) {
                 throw new InvalidRequestException("Invalid file payload");
             }
-            byte[] fileBytes;
-            try {
-                fileBytes = Base64.getDecoder().decode(base64);
-            } catch (Exception e) {
-                throw new InvalidRequestException("Invalid base64 format");
-            }
-            if (fileBytes.length > maxBytes) {
-                throw new InvalidRequestException("File size exceeds limit");
-            }
+            String contentType = f.getContentType().trim().toLowerCase();
             if (!allowed.contains(contentType)) {
-                throw new InvalidRequestException("Invalid file type");
+                throw new InvalidRequestException("Invalid file type: " + f.getFileName());
             }
-            String cleanFileName = fileNameRaw
+            if ((long) f.getBase64().length() * 3 / 4 > maxBytes + 2) {
+                throw new InvalidRequestException("File size exceeds 2 MB: " + f.getFileName());
+            }
+            byte[] bytes;
+            try {
+                bytes = Base64.getDecoder().decode(f.getBase64());
+            } catch (IllegalArgumentException e) {
+                throw new InvalidRequestException("Invalid base64 format: " + f.getFileName());
+            }
+            if (bytes.length == 0 || bytes.length > maxBytes) {
+                throw new InvalidRequestException("File is empty or exceeds 2 MB: " + f.getFileName());
+            }
+            String clean = f.getFileName()
                     .replaceAll("\\s+", "_")
                     .replaceAll("[^a-zA-Z0-9._-]", "");
-            String finalFileName = requestId + "_" + System.currentTimeMillis() + "_" + cleanFileName;
-            String key = "requests/" + requestId + "/helpRequestFiles/" + finalFileName;
-            try {
+            result.add(new ValidatedFile(clean, contentType, bytes));
+        }
+        return result;
+    }
+
+    private List<String> uploadValidatedFiles(Request request, List<String> existingPaths,
+                                              List<ValidatedFile> files) {
+        List<String> allPaths = new ArrayList<>(existingPaths);
+        List<String> responseUrls = new ArrayList<>();
+        List<String> uploadedKeys = new ArrayList<>();
+        String requestId = request.getRequestId();
+
+        try {
+            for (ValidatedFile f : files) {
+                String key = "requests/" + requestId + "/helpRequestFiles/"
+                        + requestId + "_" + System.nanoTime() + "_" + f.cleanFileName();
                 s3Client.putObject(
-                        PutObjectRequest.builder()
-                                .bucket(bucket)
-                                .key(key)
-                                .contentType(contentType)
-                                .build(),
-                        RequestBody.fromBytes(fileBytes)
-                );
-            } catch (Exception e) {
-                throw new RuntimeException("Failed to upload file", e);
+                        PutObjectRequest.builder().bucket(bucket).key(key)
+                                .contentType(f.contentType()).build(),
+                        RequestBody.fromBytes(f.bytes()));
+                uploadedKeys.add(key);
+                String s3Path = "s3://" + bucket + "/" + key;
+                allPaths.add(s3Path);
+                responseUrls.add(buildFileUrlFromS3Path(s3Path));
             }
-            String s3Path = "s3://" + bucket + "/" + key;
-            allPaths.add(s3Path);
-            responseUrls.add(buildFileUrlFromS3Path(s3Path));
+        } catch (Exception e) {
+            for (String k : uploadedKeys) {   // S3 can't roll back, so clean up manually
+                try {
+                    s3Client.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(k).build());
+                } catch (Exception ex) {
+                    logger.warn("Failed to clean up S3 object {}: {}", k, ex.getMessage());
+                }
+            }
+            throw new RuntimeException("Failed to upload file", e);
         }
 
         request.setRequestDocumentLink(toJson(allPaths));

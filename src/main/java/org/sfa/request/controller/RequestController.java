@@ -175,6 +175,22 @@ public class RequestController {
         SaayamResponse<PagedResponse<RequestSummaryDTO>> response = requestService.getRequests(requesterId, pageable, locale);
         return ResponseEntity.ok(response);
     }
+    
+    @Operation(
+            summary = "Get requests assigned to a volunteer",
+            description = "Retrieves paginated requests assigned to a volunteer."
+    )
+    @GetMapping("/volunteers/{volunteerId}/requests")
+    public ResponseEntity<SaayamResponse<PagedResponse<RequestSummaryDTO>>> getRequestsByVolunteerId(
+            @PathVariable @NotNull String volunteerId,
+            Pageable pageable,
+            HttpServletRequest request
+    ) {
+        Locale locale = localeResolver.resolveLocale(request);
+        SaayamResponse<PagedResponse<RequestSummaryDTO>> response =
+                requestService.getRequestsByVolunteerId(volunteerId, pageable, locale);
+        return ResponseEntity.ok(response);
+    }
 
     @PutMapping("/{requestId}")
     public ResponseEntity<SaayamResponse<Request>> updateRequest(

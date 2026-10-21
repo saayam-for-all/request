@@ -12,6 +12,7 @@ public interface VolunteerAssignmentRepository extends JpaRepository<VolunteerAs
 
     List<VolunteerAssignment> findByRequestId(String requestId);
 
+    List<VolunteerAssignment> findByVolunteerId(String volunteerId);
     Optional<VolunteerAssignment> findByRequestIdAndVolunteerType(String requestId, String volunteerType);
 
     Optional<VolunteerAssignment> findByRequestIdAndVolunteerId(String requestId, String volunteerId);

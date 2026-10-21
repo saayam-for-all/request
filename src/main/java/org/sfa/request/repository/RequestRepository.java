@@ -48,4 +48,18 @@ public interface RequestRepository extends JpaRepository<Request, String> {
             @Param("requestId") String requestId,
             @Param("requesterId") String requesterId
     );
+    @Query("""
+    SELECT r FROM Request r
+    WHERE r.requestId IN (
+        SELECT va.requestId
+        FROM VolunteerAssignment va
+        WHERE va.volunteerId = :volunteerId
+    )
+    AND r.requestStatus.requestStatusId != :deletedStatusId
+    """)
+Page<Request> findActiveRequestsByVolunteerId(
+        @Param("volunteerId") String volunteerId,
+        @Param("deletedStatusId") int deletedStatusId,
+        Pageable pageable
+);
 }

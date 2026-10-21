@@ -395,4 +395,43 @@ public class RequestServiceImpl implements RequestService {
 
         Optional.ofNullable(requestDTO.getServicedAt()).ifPresent(request::setServicedAt);
     }
+    @Override
+@Transactional(readOnly = true)
+public SaayamResponse<PagedResponse<RequestSummaryDTO>> getRequestsByVolunteerId(
+        String volunteerId, Pageable pageable, Locale locale) {
+
+    Sort sort = pageable.getSort().isSorted()
+            ? pageable.getSort()
+            : Sort.by(Sort.Direction.DESC, "requestId");
+
+    Pageable sortedPageable = PageRequest.of(
+            pageable.getPageNumber(),
+            pageable.getPageSize(),
+            sort
+    );
+
+    Page<Request> requests = requestRepository.findActiveRequestsByVolunteerId(
+            volunteerId,
+            RequestStatusEnum.DELETED.getId(),
+            sortedPageable
+    );
+
+    requests.getContent().forEach(volunteerAssignmentService::populateAssignments);
+
+    Page<RequestSummaryDTO> summaries =
+            requests.map(RequestSummaryDTO::fromEntity);
+
+    PagedResponse<RequestSummaryDTO> pagedResponse =
+            new PagedResponse<>(summaries);
+
+    String message = messageSource.getMessage(
+            "success.requestsRetrieved", null, locale
+    );
+
+    return SaayamResponse.success(
+            SaayamStatusCode.SUCCESS,
+            message,
+            pagedResponse
+    );
+}
 }

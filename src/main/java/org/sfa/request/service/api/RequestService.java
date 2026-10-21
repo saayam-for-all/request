@@ -45,6 +45,9 @@ public interface RequestService {
 
     SaayamResponse<PagedResponse<RequestSummaryDTO>> getRequests(String requesterId, Pageable pageable, Locale locale);
 
+    SaayamResponse<PagedResponse<RequestSummaryDTO>> getRequestsByVolunteerId(
+        String volunteerId, Pageable pageable, Locale locale);
+
     SaayamResponse<Request> updateRequest(String requesterId, String requestId, RequestDTO requestDTO, Locale locale);
 
     SaayamResponse<Void> deleteRequest(String requesterId, String requestId, Locale locale);

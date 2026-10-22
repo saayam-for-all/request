@@ -1,5 +1,6 @@
 package org.sfa.request.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
 @Setter
 @Entity
 @Table(name = "request_isleadvol", schema = "virginia_dev_saayam_rdbms")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class RequestIsLeadVolunteer {
 
     @Id

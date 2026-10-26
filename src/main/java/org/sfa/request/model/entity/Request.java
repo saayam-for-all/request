@@ -1,5 +1,6 @@
 package org.sfa.request.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
 import jakarta.persistence.*;
 
@@ -103,6 +104,7 @@ public class Request implements Serializable {
     @Column(name = "req_desc", nullable = false, columnDefinition = "VARCHAR(255)")
     private String requestDescription;
 
+    @JsonIgnore
     @Column(name = "req_doc_link", columnDefinition = "TEXT")
     private String requestDocumentLink;
 

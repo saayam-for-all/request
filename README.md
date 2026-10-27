@@ -3,7 +3,10 @@
 ## Overview
 Saayam For All - Request Service is a Java/Spring Boot backend microservice that owns the **lifecycle of help requests** on the Saayam platform. A requester asks for help; this service registers the request, finds and notifies matching volunteers, tracks assignment and status through completion, and keeps requesters and volunteers informed. It runs both as a Spring Boot web application and as AWS Lambda functions behind API Gateway.
 
-Design documents: [Request Microservice Requirements](https://github.com/saayam-for-all/request/blob/main/docs/request-service-requirements.md) and [Request Service Flow Diagram](https://github.com/saayam-for-all/request/blob/main/docs/Saayam-Request-Service-Flow.drawio).
+Documentation:
+
+- [Request microservice requirements](docs/request-service-requirements.md)
+- [Request service flow diagram](docs/Saayam-Request-Service-Flow.drawio)
 
 ## Features
 - **Request Management** - create, view, list (paginated), update, cancel, resume, and delete requests

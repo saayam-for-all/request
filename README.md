@@ -1,47 +1,44 @@
 # Saayam For All - Request Service
 
-![License](https://img.shields.io/github/license/saayam-for-all/request)
-![Contributors](https://img.shields.io/github/contributors/saayam-for-all/request)
-
 ## Overview
 Saayam For All - Request Service is a Java/Spring Boot backend microservice that owns the **lifecycle of help requests** on the Saayam platform. A requester asks for help; this service registers the request, finds and notifies matching volunteers, tracks assignment and status through completion, and keeps requesters and volunteers informed.
 
 The service runs both as a regular Spring Boot web application (REST controllers) and as **AWS Lambda functions** behind API Gateway.
 
-> **Branch note:** this README is the same on `main`, `dev`, and `test`. Design documents live on `main`; application code and notification docs live on `dev` and `test`. Links below point to the branch that contains each file.
+> **Branch note:** this README is the same on `main`, `dev`, and `test`. Design documents live on `main`; application code and notification docs live on `dev` and `test`. Links below point to the branch that contains each file. The code on `dev` and `test` is not identical, so check the branch you are working on.
 
 ## Features
 - **Request Management** - create, view, list (paginated), update, cancel, resume, and delete requests
 - **Volunteer Assignment** - assign and remove volunteers on a request, including lead-volunteer handling
 - **Help Categories & Metadata** - hierarchical help categories and per-category additional-info fields
-- **Volunteer Matching** - in-person (proximity radius) and remote (skill-based) matching
+- **Volunteer Matching** - in-person (proximity radius) and remote (help-category skill) matching
 - **Sentiment-Gated Notifications** - lexicon-based sentiment check before notifying volunteers
-- **Multi-Channel Notifications** - email (SES), SMS/push (SNS), and in-app, dispatched asynchronously via SQS
+- **Multi-Channel Notifications** - email (SES), SMS and push (SNS), and in-app, dispatched asynchronously via SQS
 - **AWS Lambda Handlers** - API Gateway dispatcher and SQS consumer handlers
 - **Global Exception Handling** - consistent `SaayamResponse` wrapper and error codes
 - **Logging with AOP**
 - **Internationalization** - 9 languages
-- **Docker and Kubernetes Deployment Ready**
+- **Docker and Kubernetes Deployment Templates**
 
 ## Technologies Used
-- 🛠 **Spring Boot 3.3** (Java 17) - Backend framework
-- 🔧 **Maven** (wrapper included) - Build automation
-- 🗄 **PostgreSQL** + Spring Data JPA - Database
-- ☁️ **AWS Lambda, SQS, SNS, SES** - Serverless runtime and messaging
-- 📜 **springdoc-openapi (Swagger UI)** - API documentation
-- ✨ **Lombok** - Boilerplate reduction
-- 🐳 **Docker** - Containerization
-- ☸️ **Kubernetes (EKS)** - Deployment
-- 🧪 **JUnit 5 + Mockito** - Testing
+- **Spring Boot 3.3** (Java 17) - Backend framework
+- **Maven** (wrapper included) - Build automation
+- **PostgreSQL** + Spring Data JPA - Database
+- **AWS Lambda, SQS, SNS, SES** - Serverless runtime and messaging
+- **springdoc-openapi (Swagger UI)** - API documentation
+- **Lombok** - Boilerplate reduction
+- **Docker** - Containerization
+- **Kubernetes (EKS)** - Deployment
+- **JUnit 5 + Mockito** - Testing
 
 ## Architecture & Design Documents
-The design documents are the source of truth for intended behavior:
+The design documents describe the intended behavior of the service:
 
 | Document | Branch | What it covers |
 | --- | --- | --- |
 | [Request Microservice Requirements](https://github.com/saayam-for-all/request/blob/main/docs/request-service-requirements.md) ([PDF](https://github.com/saayam-for-all/request/blob/main/output/pdf/request-service-requirements.pdf)) | `main` | Purpose, scope, stakeholders, system context diagram, functional and non-functional requirements, lifecycle states, data and integration requirements, open decisions |
-| [Request Service Flow Diagram](https://github.com/saayam-for-all/request/blob/main/docs/Saayam-Request-Service-Flow.drawio) | `main` | draw.io file with pages: *User Request Handler Service*, *Use Case - New User Request*, *Request-APIs*, *Notes*. Open it at [app.diagrams.net](https://app.diagrams.net/) |
-| [Notification Routing Flow](https://github.com/saayam-for-all/request/blob/test/docs/notification-routing-flow.md) | `dev`, `test` | Sentiment analysis → volunteer matching → notification dispatch |
+| [Request Service Flow Diagram](https://github.com/saayam-for-all/request/blob/main/docs/Saayam-Request-Service-Flow.drawio) | `main` | draw.io file with pages including *User Request Handler Service*, *Use Case - New User Request*, *Request-APIs*, and *Notes*. Open it at [app.diagrams.net](https://app.diagrams.net/) |
+| [Notification Routing Flow](https://github.com/saayam-for-all/request/blob/test/docs/notification-routing-flow.md) | `dev`, `test` | Sentiment analysis, volunteer matching, and notification dispatch |
 | [Notification Runtime Setup](https://github.com/saayam-for-all/request/blob/test/docs/notification-runtime-setup.md) | `dev`, `test` | Environment variables, Lambda handler, IAM, SQS retry, SES, local AWS emulator |
 
 ### High-level request flow
@@ -67,7 +64,7 @@ flowchart LR
     req --> ai["AI Module"]
 ```
 
-> The requirements document describes the target architecture (for example DynamoDB and S3). The current implementation uses PostgreSQL. See *Open Decisions* in the requirements document for items still being finalized.
+> The requirements document describes the target design (for example DynamoDB and S3, OTP handshake, AI fallback). Not all of it is implemented yet, and the current implementation uses PostgreSQL. See *Open Decisions* in the requirements document for items still being finalized.
 
 ### Request lifecycle
 Status values currently implemented (`RequestStatusEnum`):
@@ -89,7 +86,6 @@ request/
 │   │   ├── controller/                # REST controllers
 │   │   ├── dto/                       # Data Transfer Objects (incl. notification DTOs)
 │   │   ├── exception/                 # Global & Lambda exception handlers, custom exceptions
-│   │   ├── listener/                  # SQS listener
 │   │   ├── model/                     # JPA entities and enums
 │   │   ├── repository/                # Spring Data JPA repositories
 │   │   ├── requesthandler/            # AWS Lambda handlers
@@ -120,6 +116,7 @@ request/
 - `RequestController.java`: Request CRUD, cancel/resume, and volunteer assignment endpoints.
 - `HelpCategoryController.java`: Hierarchical help categories.
 - `MetadataController.java`: Additional-info fields per help category.
+- `EnumController.java` (`dev` only): Lookup values for request enums.
 
 ### `service/`
 Interfaces in `service/api/`, implementations in `service/impl/`.
@@ -135,14 +132,24 @@ Interfaces in `service/api/`, implementations in `service/impl/`.
 AWS Lambda entry points.
 - `RequestDispatcherHandler.java`: Routes API Gateway events to request, help category, and metadata operations.
 - `CreateRequestHandler`, `GetRequestHandler`, `UpdateRequestHandler`, `DeleteRequestHandler`, `CancelRequestHandler`, `ResumeRequestHandler`: Per-operation handlers.
+- `EnumHandler` (`dev` only): Enum lookups.
 - `NotificationQueueHandler.java`: SQS consumer that delivers queued notifications (supports partial batch failure).
 
 ### `model/`
 - `entity/`: JPA entities such as `Request`, `RequestStatus`, `RequestCategory`, `HelpCategory`, `VolunteerAssignment`, `Notification`.
 - `enums/`: `RequestStatusEnum`, `RequestPriorityEnum`, `RequestTypeEnum`, `RequestForEnum`, `RequestCategoryEnum`, `VolunteerAssignmentTypeEnum`, `SentimentCode`.
 
+### `dto/`
+Data transfer objects for API requests and responses, such as `RequestDTO`, `RequestSummaryDTO`, `HelpCategoryDto`, and `VolunteerAssignmentDTO`. `dto/notification/` holds notification event, recipient, channel, and event-type objects.
+
 ### `repository/`
 Spring Data JPA repositories for each entity, plus `VolunteerMatchRepository` for matching queries.
+
+### `config/`
+- `OpenApiConfig`: Swagger/OpenAPI metadata.
+- `SQSConfig`, `AwsNotificationConfig`, `AwsClientSupport`: AWS client setup, including an optional local endpoint override.
+- `InternationalizationConfig`: Message source and locale resolution.
+- `ObjectMapperConfig`, `SpringContext`: JSON mapping and Spring context access for Lambda handlers.
 
 ### `exception/`
 - `handler/GlobalExceptionHandler.java`: Application-wide REST error handling.
@@ -153,48 +160,25 @@ Spring Data JPA repositories for each entity, plus `VolunteerMatchRepository` fo
 `saayam_messages*.properties` for English (default), German, Spanish, French, Hindi, Japanese, Telugu, Simplified Chinese, and Traditional Chinese.
 
 ### `test/java/`
-Unit tests for controllers, DTOs, entities, config, AOP, and exception handling.
+Unit tests for controllers, services, DTOs, entities, config, AOP, and exception handling.
 
-## API Endpoints
-Once running, the full interactive reference is in Swagger UI (see [API Documentation](#api-documentation)).
+## API Overview
+The API is still evolving and **paths differ between `dev` and `test`**. Swagger UI on a running instance is the source of truth (see [API Documentation](#api-documentation)).
 
-**Requests** - base path `/api/v1.0.0/requests/{requesterId}`
-
-| Method | Path | Description |
-| --- | --- | --- |
-| `POST` | `/createRequest` | Create a request |
-| `GET` | `/` | List requests (paginated) |
-| `GET` | `/{requestId}` | Get a request |
-| `PUT` | `/{requestId}` | Update a request |
-| `DELETE` | `/{requestId}` | Delete a request |
-| `POST` | `/{requestId}/cancel` | Cancel a request |
-| `POST` | `/{requestId}/resume` | Resume a request |
-| `POST` | `/{requestId}/volunteers` | Assign a volunteer |
-| `DELETE` | `/{requestId}/volunteers/{volunteerId}` | Remove a volunteer |
-
-**Help Categories** - base path `/helpCategories`
-
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/` | All categories (hierarchical) |
-| `GET` | `/{catId}` | Category by ID |
-| `GET` | `/parent/{parentId}` | Child categories of a parent |
-| `GET` | `/categoryMap` | Category tree map |
-
-**Metadata** - base path `/metadata`
-
-| Method | Path | Description |
-| --- | --- | --- |
-| `GET` | `/category/{catId}/fields` | Additional-info fields for a category |
-| `GET` | `/category/tree` | Grouped metadata tree |
+| Resource | Operations | Base path on `dev` | Base path on `test` |
+| --- | --- | --- | --- |
+| Requests | Create, list (paginated), get, update, delete, cancel, resume, assign/remove volunteer | `/dev/requests/v1.0.0/requests` | `/api/v1.0.0/requests/{requesterId}` |
+| Help Categories | Category list, children of a parent, category by ID, category map | `/helpCategories` | `/helpCategories` |
+| Metadata | Additional-info fields for help categories | `/metadata` | `/metadata` |
+| Enums | Request enum lookups | `/enums` | Not available |
 
 ## Installation & Setup
 ### Prerequisites
-- ☕ JDK 17 or later
-- ⚙️ Maven 3.8+ (or use the included `./mvnw` wrapper)
-- 🗄 PostgreSQL
-- 🐳 Docker (optional, for containerized runs)
-- ☸️ Kubernetes / AWS account (optional, for cloud deployment)
+- JDK 17 or later
+- Maven, or the included `./mvnw` wrapper (Maven 3.9.7)
+- PostgreSQL
+- Docker (optional, for containerized runs)
+- Kubernetes / AWS account (optional, for cloud deployment)
 
 ### Clone Repository
 ```sh
@@ -204,13 +188,13 @@ git checkout dev   # application code lives on dev / test
 ```
 
 ### Configuration
-Database settings are in `src/main/resources/application.properties` and can be overridden with environment variables:
+Configuration is in `src/main/resources/application.properties`. Values can be overridden with environment variables:
 
 | Variable | Purpose |
 | --- | --- |
 | `SPRING_DATASOURCE_URL` | JDBC URL, e.g. `jdbc:postgresql://localhost:5432/<db>` |
 | `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | Database credentials |
-| `SPRING_PROFILES_ACTIVE` | Spring profile (e.g. `dev`) |
+| `DB_DEV_HOST_URL`, `DB_DEV_USERNAME`, `DB_DEV_PASSWORD` | Database settings read by `application.properties` on `dev` |
 | `AWS_REGION` | AWS region (default `us-east-1`) |
 | `AWS_SQS_NOTIFICATION_QUEUE_URL` | SQS queue for notification events |
 | `AWS_SES_SENDER_EMAIL` | Verified SES sender email |
@@ -219,12 +203,13 @@ Database settings are in `src/main/resources/application.properties` and can be 
 | `MATCHING_IN_PERSON_RADIUS_METERS` | In-person matching radius (default `25000`) |
 | `MATCHING_IN_PERSON_MAX_VOLUNTEERS` | Max volunteers notified for in-person requests (default `25`) |
 
-Schema and seed data load from `schema.sql` and `data.sql` on startup. See [Notification Runtime Setup](https://github.com/saayam-for-all/request/blob/test/docs/notification-runtime-setup.md) for IAM, SQS, SES, and local AWS emulator details.
+On startup the service runs `schema.sql` and `data.sql`. They create the `virginia_dev_saayam_rdbms` schema and tables if missing and insert lookup data. The AWS variables are only needed for notification features. See [Notification Runtime Setup](https://github.com/saayam-for-all/request/blob/test/docs/notification-runtime-setup.md) for IAM, SQS, SES, and local AWS emulator details.
 
 > Never commit real credentials. Use environment variables or a local, git-ignored config.
 
 ### Build & Run
 #### Run Locally
+Start PostgreSQL and set the database variables above, then:
 ```sh
 ./mvnw clean install
 ./mvnw spring-boot:run
@@ -247,7 +232,7 @@ docker run -p 8080:8080 \
   -e SPRING_DATASOURCE_PASSWORD=<password> \
   saayam-request
 ```
-Or use Docker Compose (update the environment values in `docker-compose.yml` first):
+Or use Docker Compose. Build the jar first, and update the environment values in `docker-compose.yml`. Inside a container, `localhost` refers to the container itself, so use `host.docker.internal` to reach a database on your machine.
 ```sh
 docker compose up --build
 ```
@@ -260,7 +245,7 @@ Once the application is running:
 
 ## Deployment
 ### Kubernetes (AWS EKS)
-Replace the `<placeholder>` values (ECR image, database URL/credentials, IAM role ARN, load balancer name, subnets) in the manifests, then:
+The manifests are templates. Before applying them, replace the `<placeholder>` values (ECR image, database URL and credentials, IAM role ARN, load balancer name, subnets) and review the names and namespaces:
 ```sh
 kubectl apply -f service-account.yaml
 kubectl apply -f deployment.yaml
@@ -269,18 +254,19 @@ kubectl apply -f ingress.yaml
 ```
 
 ### AWS Lambda
-- API Gateway → `org.sfa.request.requesthandler.RequestDispatcherHandler`
-- SQS notification consumer → `org.sfa.request.requesthandler.NotificationQueueHandler` (enable partial batch response)
+Handler classes:
+- API Gateway: `org.sfa.request.requesthandler.RequestDispatcherHandler`
+- SQS notification consumer: `org.sfa.request.requesthandler.NotificationQueueHandler` (enable partial batch response)
 
 ## Contributing
 ### Branches
 | Branch | Purpose |
 | --- | --- |
-| `main` | Stable branch; design documentation |
+| `main` | Default branch; design documentation |
 | `dev` | Development integration |
 | `test` | Testing / QA |
 
-Changes are **not** promoted automatically between branches. Open a **separate pull request for each target branch**.
+Changes are **not** merged between branches automatically. Open a **separate pull request for each target branch**.
 
 ### Workflow
 1. **Pick or create an issue** and get it assigned to you.
@@ -299,8 +285,5 @@ This project is licensed under the **GNU General Public License v3.0**. See the 
 ## Contact
 For any queries or contributions, reach out to:
 - Saayam for All volunteers
-- 📌 **GitHub Repository**: [Saayam For All - Request](https://github.com/saayam-for-all/request)
-- 📌 **Spring Boot**: [Spring Boot](https://spring.io/projects/spring-boot)
----
-
-✨ Happy coding! 🚀
+- **GitHub Repository**: [Saayam For All - Request](https://github.com/saayam-for-all/request)
+- **Spring Boot**: [Spring Boot](https://spring.io/projects/spring-boot)

@@ -1,5 +1,6 @@
 package org.sfa.request.service.impl;
 
+
 import org.sfa.request.constant.SaayamStatusCode;
 import org.sfa.request.dto.GuestDetailsDTO;
 import org.sfa.request.dto.ReqAddInfoDTO;
@@ -97,6 +98,9 @@ public class RequestServiceImpl implements RequestService {
     private final HelpCategoryRepository helpCategoryRepository;
     private final RequestForRepository requestForRepository;
     private final RequestCommentRepository requestCommentRepository;
+
+
+
     private final MessageSource messageSource;
     private final ReqAddInfoRepository reqAddInfoRepository;
     private final UserRepository userRepository;
@@ -1160,7 +1164,9 @@ public class RequestServiceImpl implements RequestService {
                 .createdBy(resolveCommentCreator(requesterId, requestCommentDTO.getCreatedBy()))
                 .createdAt(now)
                 .updatedAt(now)
+                .isDeleted(false)
                 .build();
+
 
         return mapToCommentDTO(requestCommentRepository.save(comment));
     }
@@ -1175,7 +1181,7 @@ public class RequestServiceImpl implements RequestService {
         findActiveRequest(requesterId, requestId, locale);
 
         return requestCommentRepository
-                .findByRequestIdOrderByCreatedAtAscIdAsc(requestId)
+                .findByRequestIdAndIsDeletedFalseOrderByCreatedAtAscIdAsc(requestId)
                 .stream()
                 .map(this::mapToCommentDTO)
                 .toList();
@@ -1210,11 +1216,14 @@ public class RequestServiceImpl implements RequestService {
         RequestComment comment = findComment(id);
         findActiveRequest(requesterId, comment.getRequestId(), locale);
 
-        requestCommentRepository.delete(comment);
+        comment.setIsDeleted(true);
+        comment.setUpdatedAt(LocalDateTime.now());
+
+        requestCommentRepository.save(comment);
     }
 
     private RequestComment findComment(Long id) {
-        return requestCommentRepository.findById(id)
+        return requestCommentRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new NotFoundException("Comment not found"));
     }
 

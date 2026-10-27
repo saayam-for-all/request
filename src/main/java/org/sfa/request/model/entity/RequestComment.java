@@ -15,7 +15,10 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "request_comment")
+@Table(
+        name = "req_comments",
+        schema = "virginia_dev_saayam_rdbms"
+)
 @Getter
 @Setter
 @Builder
@@ -25,20 +28,24 @@ public class RequestComment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "comment_id")
     private Long id;
 
-    @Column(name = "request_id", nullable = false, length = 255)
+    @Column(name = "req_id", nullable = false)
     private String requestId;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(name = "comment_desc", nullable = false)
     private String comment;
 
-    @Column(name = "created_by", length = 100)
+    @Column(name = "commenter_id")
     private String createdBy;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @Column(name = "last_updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "isdeleted")
+    private Boolean isDeleted;
 }

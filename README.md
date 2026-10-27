@@ -5,7 +5,7 @@ Saayam For All - Request Service is a Java/Spring Boot backend microservice that
 
 The service runs both as a regular Spring Boot web application (REST controllers) and as **AWS Lambda functions** behind API Gateway.
 
-> **Branch note:** this README is the same on `main`, `dev`, and `test`. Design documents live on `main`; application code and notification docs live on `dev` and `test`. Links below point to the branch that contains each file. The code on `dev` and `test` is not identical, so check the branch you are working on.
+> **Branch note:** this README is the same on `main`, `dev`, and `test`. Design documents live on `main`; application code and notification docs live on `dev` and `test`. Links below point to the branch that contains each file.
 
 ## Features
 - **Request Management** - create, view, list (paginated), update, cancel, resume, and delete requests
@@ -64,15 +64,11 @@ flowchart LR
     req --> ai["AI Module"]
 ```
 
-> The requirements document describes the target design (for example DynamoDB and S3, OTP handshake, AI fallback). Not all of it is implemented yet, and the current implementation uses PostgreSQL. See *Open Decisions* in the requirements document for items still being finalized.
-
 ### Request lifecycle
 Status values currently implemented (`RequestStatusEnum`):
 
 `CREATED` → `PENDING_VOLUNTEER_ASSIGNMENT` → `IN_PROGRESS` → `COMPLETED` → `RATED_BY_REQUESTER` / `RATED_BY_VOLUNTEER`
 plus `CANCELLED` and `DELETED`.
-
-The requirements document defines lifecycle concepts (`Pending`, `In-Progress`, `Complete`, `Failed`, `Cancelled`, `Archived`); final enum values and transitions are an open decision.
 
 ## Project Structure & Explanation
 ```bash

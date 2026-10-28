@@ -1,0 +1,1199 @@
+{
+  "Comment": "Issue 88 verified-diagram contract; blocked integrations are explicit",
+  "StartAt": "ValidateSubmission",
+  "TimeoutSeconds": 7776000,
+  "States": {
+    "ValidateSubmission": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.submissionId",
+          "IsString": true,
+          "Next": "CheckRequestData"
+        }
+      ],
+      "Default": "InvalidSubmission"
+    },
+    "CheckRequestData": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.requestData.requestSubject",
+          "IsString": true,
+          "Next": "ClassifyContent"
+        }
+      ],
+      "Default": "InvalidSubmission"
+    },
+    "ClassifyContent": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${ClassifierLambdaArn}",
+        "Payload": {
+          "operation": "classify",
+          "executionId.$": "$$.Execution.Id",
+          "submissionId.$": "$.submissionId",
+          "subject.$": "$.requestData.requestSubject",
+          "description.$": "$.requestData.requestDescription"
+        }
+      },
+      "ResultPath": "$.classificationInvoke",
+      "TimeoutSeconds": 20,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "ClassificationDecision"
+    },
+    "ClassificationDecision": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.classificationInvoke.Payload.code",
+          "NumericEquals": 0,
+          "Next": "PersistAccepted"
+        },
+        {
+          "Variable": "$.classificationInvoke.Payload.code",
+          "NumericEquals": 1,
+          "Next": "FlaggedForReview"
+        },
+        {
+          "Variable": "$.classificationInvoke.Payload.code",
+          "NumericEquals": 2,
+          "Next": "FlaggedForReview"
+        },
+        {
+          "Variable": "$.classificationInvoke.Payload.code",
+          "NumericEquals": 3,
+          "Next": "FlaggedForReview"
+        }
+      ],
+      "Default": "MalformedClassification"
+    },
+    "PersistAccepted": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${PersistenceLambdaArn}",
+        "Payload": {
+          "operation": "persistAccepted",
+          "executionId.$": "$$.Execution.Id",
+          "submissionId.$": "$.submissionId",
+          "requestData.$": "$.requestData",
+          "classificationCode.$": "$.classificationInvoke.Payload.code"
+        }
+      },
+      "ResultPath": "$.persistedInvoke",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "CheckPersistence"
+    },
+    "CheckPersistence": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.persistedInvoke.Payload.requestId",
+          "IsString": true,
+          "Next": "CheckLeadVolunteer"
+        }
+      ],
+      "Default": "MalformedPersistence"
+    },
+    "CheckLeadVolunteer": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.requestData.isLeadVolunteer",
+          "NumericEquals": 1,
+          "Next": "PrepareSelfLead"
+        }
+      ],
+      "Default": "RouteMatching"
+    },
+    "PrepareSelfLead": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${AssignmentLambdaArn}",
+        "Payload": {
+          "operation": "prepareSelfLead",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "requesterId.$": "$.requestData.requesterId"
+        }
+      },
+      "ResultPath": "$.assignmentInvoke",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "CheckSelfAssignment"
+    },
+    "CheckSelfAssignment": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.assignmentInvoke.Payload.confirmed",
+          "BooleanEquals": true,
+          "Next": "IssueOtp"
+        }
+      ],
+      "Default": "ManualReview"
+    },
+    "RouteMatching": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.requestData.requestType.requestTypeId",
+          "NumericEquals": 1,
+          "Next": "MatchInPerson"
+        },
+        {
+          "Variable": "$.requestData.requestType.requestTypeId",
+          "NumericEquals": 2,
+          "Next": "MatchRemote"
+        }
+      ],
+      "Default": "InvalidRequestType"
+    },
+    "MatchInPerson": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${MatchingLambdaArn}",
+        "Payload": {
+          "operation": "matchInPerson",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "requesterId.$": "$.requestData.requesterId",
+          "categoryId.$": "$.requestData.helpCategory.catId",
+          "isCalamity.$": "$.requestData.isCalamity"
+        }
+      },
+      "ResultPath": "$.matchInvoke",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "CheckMatches"
+    },
+    "MatchRemote": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${MatchingLambdaArn}",
+        "Payload": {
+          "operation": "matchRemote",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "requesterId.$": "$.requestData.requesterId",
+          "categoryId.$": "$.requestData.helpCategory.catId",
+          "isCalamity.$": "$.requestData.isCalamity"
+        }
+      },
+      "ResultPath": "$.matchInvoke",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "CheckMatches"
+    },
+    "CheckMatches": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.matchInvoke.Payload.hasCandidates",
+          "BooleanEquals": true,
+          "Next": "PrepareFirstBatch"
+        },
+        {
+          "Variable": "$.matchInvoke.Payload.hasCandidates",
+          "BooleanEquals": false,
+          "Next": "ManualReview"
+        }
+      ],
+      "Default": "MalformedMatch"
+    },
+    "PrepareFirstBatch": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${BatchLambdaArn}",
+        "Payload": {
+          "operation": "firstBatch",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "match.$": "$.matchInvoke.Payload"
+        }
+      },
+      "ResultPath": "$.batchInvoke",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "BatchDecision"
+    },
+    "PrepareNextBatch": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${BatchLambdaArn}",
+        "Payload": {
+          "operation": "nextBatch",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "previous.$": "$.batchInvoke.Payload",
+          "match.$": "$.matchInvoke.Payload"
+        }
+      },
+      "ResultPath": "$.batchInvoke",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "BatchDecision"
+    },
+    "BatchDecision": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.batchInvoke.Payload.exhausted",
+          "BooleanEquals": true,
+          "Next": "ManualReview"
+        },
+        {
+          "Variable": "$.batchInvoke.Payload.exhausted",
+          "BooleanEquals": false,
+          "Next": "AwaitAcceptance"
+        }
+      ],
+      "Default": "MalformedBatch"
+    },
+    "AwaitAcceptance": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${CallbackRegistrationLambdaArn}",
+        "Payload": {
+          "operation": "registerAcceptanceAndNotify",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "batch.$": "$.batchInvoke.Payload",
+          "taskToken.$": "$$.Task.Token"
+        }
+      },
+      "ResultPath": "$.acceptance",
+      "TimeoutSeconds": 86400,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.Timeout"
+          ],
+          "Next": "PrepareNextBatch"
+        },
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "AcceptanceDecision"
+    },
+    "AcceptanceDecision": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.acceptance.accepted",
+          "BooleanEquals": true,
+          "Next": "ConfirmAssignment"
+        },
+        {
+          "Variable": "$.acceptance.accepted",
+          "BooleanEquals": false,
+          "Next": "WaitForNextBatch"
+        }
+      ],
+      "Default": "MalformedCallback"
+    },
+    "WaitForNextBatch": {
+      "Type": "Wait",
+      "Seconds": 86400,
+      "Next": "PrepareNextBatch"
+    },
+    "ConfirmAssignment": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${AssignmentLambdaArn}",
+        "Payload": {
+          "operation": "confirmAssignment",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "volunteerId.$": "$.acceptance.volunteerId"
+        }
+      },
+      "ResultPath": "$.assignmentInvoke",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "CheckAssignment"
+    },
+    "CheckAssignment": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.assignmentInvoke.Payload.confirmed",
+          "BooleanEquals": true,
+          "Next": "IssueOtp"
+        },
+        {
+          "Variable": "$.assignmentInvoke.Payload.confirmed",
+          "BooleanEquals": false,
+          "Next": "PrepareNextBatch"
+        }
+      ],
+      "Default": "MalformedAssignment"
+    },
+    "IssueOtp": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${OtpLambdaArn}",
+        "Payload": {
+          "operation": "issueOtp",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "assignment.$": "$.assignmentInvoke.Payload"
+        }
+      },
+      "ResultPath": "$.otpInvoke",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "AwaitOtpVerification"
+    },
+    "AwaitOtpVerification": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${CallbackRegistrationLambdaArn}",
+        "Payload": {
+          "operation": "registerOtpCallback",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "challengeId.$": "$.otpInvoke.Payload.challengeId",
+          "taskToken.$": "$$.Task.Token"
+        }
+      },
+      "ResultPath": "$.otpVerification",
+      "TimeoutSeconds": 900,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.Timeout"
+          ],
+          "Next": "AwaitReassignmentApproval"
+        },
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "OtpDecision"
+    },
+    "OtpDecision": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.otpVerification.verified",
+          "BooleanEquals": true,
+          "Next": "MarkInProgress"
+        },
+        {
+          "Variable": "$.otpVerification.attemptsRemaining",
+          "BooleanEquals": true,
+          "Next": "IssueOtp"
+        }
+      ],
+      "Default": "AwaitReassignmentApproval"
+    },
+    "AwaitReassignmentApproval": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${CallbackRegistrationLambdaArn}",
+        "Payload": {
+          "operation": "registerAdminReassignment",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "taskToken.$": "$$.Task.Token"
+        }
+      },
+      "ResultPath": "$.reassignment",
+      "TimeoutSeconds": 604800,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.Timeout"
+          ],
+          "Next": "ManualReview"
+        },
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "ReassignmentDecision"
+    },
+    "ReassignmentDecision": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.reassignment.approved",
+          "BooleanEquals": true,
+          "Next": "RouteMatching"
+        },
+        {
+          "Variable": "$.reassignment.approved",
+          "BooleanEquals": false,
+          "Next": "CancelByAdmin"
+        }
+      ],
+      "Default": "MalformedCallback"
+    },
+    "MarkInProgress": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${LifecycleLambdaArn}",
+        "Payload": {
+          "operation": "markInProgressIfActiveAndVerified",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "challengeId.$": "$.otpInvoke.Payload.challengeId",
+          "verification.$": "$.otpVerification"
+        }
+      },
+      "ResultPath": "$.progressInvoke",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "CheckInProgress"
+    },
+    "CheckInProgress": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.progressInvoke.Payload.updated",
+          "BooleanEquals": true,
+          "Next": "AwaitWorkCompletion"
+        },
+        {
+          "Variable": "$.progressInvoke.Payload.terminal",
+          "BooleanEquals": true,
+          "Next": "Terminated"
+        }
+      ],
+      "Default": "MalformedTransition"
+    },
+    "AwaitWorkCompletion": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${CallbackRegistrationLambdaArn}",
+        "Payload": {
+          "operation": "registerWorkCallback",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "taskToken.$": "$$.Task.Token"
+        }
+      },
+      "ResultPath": "$.work",
+      "TimeoutSeconds": 2592000,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.Timeout"
+          ],
+          "Next": "ManualReview"
+        },
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "WorkDecision"
+    },
+    "WorkDecision": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.work.action",
+          "StringEquals": "ADD_HELPERS",
+          "Next": "AddHelpers"
+        },
+        {
+          "Variable": "$.work.action",
+          "StringEquals": "DELEGATE",
+          "Next": "DelegateOrganization"
+        },
+        {
+          "Variable": "$.work.action",
+          "StringEquals": "COMPLETE",
+          "Next": "MarkResolved"
+        },
+        {
+          "Variable": "$.work.action",
+          "StringEquals": "CANCEL",
+          "Next": "CancelByAdmin"
+        }
+      ],
+      "Default": "MalformedCallback"
+    },
+    "AddHelpers": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${AssignmentLambdaArn}",
+        "Payload": {
+          "operation": "addHelpersIfActive",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "volunteerIds.$": "$.work.volunteerIds"
+        }
+      },
+      "ResultPath": "$.helpersInvoke",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "AwaitWorkCompletion"
+    },
+    "DelegateOrganization": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${DelegationLambdaArn}",
+        "Payload": {
+          "operation": "delegateIfActive",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "organizationId.$": "$.work.organizationId"
+        }
+      },
+      "ResultPath": "$.delegationInvoke",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "Delegated"
+    },
+    "MarkResolved": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${LifecycleLambdaArn}",
+        "Payload": {
+          "operation": "resolveIfActive",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId"
+        }
+      },
+      "ResultPath": "$.resolutionInvoke",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "CheckResolved"
+    },
+    "CheckResolved": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.resolutionInvoke.Payload.updated",
+          "BooleanEquals": true,
+          "Next": "CollectRatings"
+        },
+        {
+          "Variable": "$.resolutionInvoke.Payload.terminal",
+          "BooleanEquals": true,
+          "Next": "Terminated"
+        }
+      ],
+      "Default": "MalformedTransition"
+    },
+    "CollectRatings": {
+      "Type": "Parallel",
+      "Branches": [
+        {
+          "StartAt": "AwaitRequesterRating",
+          "States": {
+            "AwaitRequesterRating": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+              "Parameters": {
+                "FunctionName": "${CallbackRegistrationLambdaArn}",
+                "Payload": {
+                  "operation": "registerRatingCallback",
+                  "executionId.$": "$$.Execution.Id",
+                  "requestId.$": "$.persistedInvoke.Payload.requestId",
+                  "purpose": "Requester",
+                  "taskToken.$": "$$.Task.Token"
+                }
+              },
+              "ResultPath": "$.rating",
+              "TimeoutSeconds": 604800,
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "BackoffRate": 2,
+                  "MaxAttempts": 3
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.Timeout"
+                  ],
+                  "Next": "RequesterRatingTimedOut"
+                },
+                {
+                  "ErrorEquals": [
+                    "States.ALL"
+                  ],
+                  "Next": "RequesterRatingFailed"
+                }
+              ],
+              "Next": "RequesterRatingRecorded"
+            },
+            "RequesterRatingRecorded": {
+              "Type": "Succeed"
+            },
+            "RequesterRatingTimedOut": {
+              "Type": "Pass",
+              "Result": {
+                "outcome": "TIMEOUT"
+              },
+              "End": true
+            },
+            "RequesterRatingFailed": {
+              "Type": "Pass",
+              "Result": {
+                "outcome": "ERROR"
+              },
+              "End": true
+            }
+          }
+        },
+        {
+          "StartAt": "AwaitVolunteerRating",
+          "States": {
+            "AwaitVolunteerRating": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+              "Parameters": {
+                "FunctionName": "${CallbackRegistrationLambdaArn}",
+                "Payload": {
+                  "operation": "registerRatingCallback",
+                  "executionId.$": "$$.Execution.Id",
+                  "requestId.$": "$.persistedInvoke.Payload.requestId",
+                  "purpose": "Volunteer",
+                  "taskToken.$": "$$.Task.Token"
+                }
+              },
+              "ResultPath": "$.rating",
+              "TimeoutSeconds": 604800,
+              "Retry": [
+                {
+                  "ErrorEquals": [
+                    "Lambda.ServiceException",
+                    "Lambda.AWSLambdaException",
+                    "Lambda.SdkClientException"
+                  ],
+                  "IntervalSeconds": 2,
+                  "BackoffRate": 2,
+                  "MaxAttempts": 3
+                }
+              ],
+              "Catch": [
+                {
+                  "ErrorEquals": [
+                    "States.Timeout"
+                  ],
+                  "Next": "VolunteerRatingTimedOut"
+                },
+                {
+                  "ErrorEquals": [
+                    "States.ALL"
+                  ],
+                  "Next": "VolunteerRatingFailed"
+                }
+              ],
+              "Next": "VolunteerRatingRecorded"
+            },
+            "VolunteerRatingRecorded": {
+              "Type": "Succeed"
+            },
+            "VolunteerRatingTimedOut": {
+              "Type": "Pass",
+              "Result": {
+                "outcome": "TIMEOUT"
+              },
+              "End": true
+            },
+            "VolunteerRatingFailed": {
+              "Type": "Pass",
+              "Result": {
+                "outcome": "ERROR"
+              },
+              "End": true
+            }
+          }
+        }
+      ],
+      "ResultPath": "$.ratings",
+      "Next": "Resolved"
+    },
+    "CancelByAdmin": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${LifecycleLambdaArn}",
+        "Payload": {
+          "operation": "cancelIfActive",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId"
+        }
+      },
+      "ResultPath": "$.cancelInvoke",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "Terminated"
+    },
+    "ManualReview": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${ManualReviewLambdaArn}",
+        "Payload": {
+          "operation": "queueManualReview",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.persistedInvoke.Payload.requestId"
+        }
+      },
+      "ResultPath": "$.reviewInvoke",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "ManualReviewQueued"
+    },
+    "FlaggedForReview": {
+      "Type": "Succeed"
+    },
+    "ManualReviewQueued": {
+      "Type": "Succeed"
+    },
+    "Terminated": {
+      "Type": "Succeed"
+    },
+    "Delegated": {
+      "Type": "Succeed"
+    },
+    "Resolved": {
+      "Type": "Succeed"
+    },
+    "InvalidSubmission": {
+      "Type": "Fail",
+      "Error": "InvalidSubmission",
+      "Cause": "Workflow input, task output, or dependency failed"
+    },
+    "MalformedClassification": {
+      "Type": "Fail",
+      "Error": "MalformedClassification",
+      "Cause": "Workflow input, task output, or dependency failed"
+    },
+    "MalformedPersistence": {
+      "Type": "Fail",
+      "Error": "MalformedPersistence",
+      "Cause": "Workflow input, task output, or dependency failed"
+    },
+    "InvalidRequestType": {
+      "Type": "Fail",
+      "Error": "InvalidRequestType",
+      "Cause": "Workflow input, task output, or dependency failed"
+    },
+    "MalformedMatch": {
+      "Type": "Fail",
+      "Error": "MalformedMatch",
+      "Cause": "Workflow input, task output, or dependency failed"
+    },
+    "MalformedBatch": {
+      "Type": "Fail",
+      "Error": "MalformedBatch",
+      "Cause": "Workflow input, task output, or dependency failed"
+    },
+    "MalformedCallback": {
+      "Type": "Fail",
+      "Error": "MalformedCallback",
+      "Cause": "Workflow input, task output, or dependency failed"
+    },
+    "MalformedAssignment": {
+      "Type": "Fail",
+      "Error": "MalformedAssignment",
+      "Cause": "Workflow input, task output, or dependency failed"
+    },
+    "MalformedTransition": {
+      "Type": "Fail",
+      "Error": "MalformedTransition",
+      "Cause": "Workflow input, task output, or dependency failed"
+    },
+    "WorkflowFailed": {
+      "Type": "Fail",
+      "Error": "WorkflowFailed",
+      "Cause": "Workflow input, task output, or dependency failed"
+    }
+  }
+}

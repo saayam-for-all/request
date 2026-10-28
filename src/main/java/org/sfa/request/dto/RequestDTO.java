@@ -1,5 +1,6 @@
 package org.sfa.request.dto;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -37,6 +38,10 @@ public class RequestDTO {
     // NEW: matches req_doc_link in DB
     private String requestDocumentLink;
 
+    // Present in the agreed frontend payload. Persistence for these category
+    // answers is a separate schema contract; retain them at the API boundary.
+    private JsonNode additionalFields;
+
     private ZonedDateTime submittedAt;
     private ZonedDateTime servicedAt;
     private ZonedDateTime lastUpdatedAt;
@@ -47,7 +52,8 @@ public class RequestDTO {
     @Valid
     private GuestDetailsDTO guestDetails;
 
-    @NotNull(message = "Request status cannot be null")
+    // Create Request assigns CREATED server-side. The agreed frontend submission
+    // payload does not supply a request status (Issue #80).
     private RequestStatusDTO requestStatus;
 
     @NotNull(message = "Request priority cannot be null")

@@ -93,7 +93,8 @@ class RequestServiceImplIssue14Test {
         when(requestPriorityRepository.findById(anyInt())).thenReturn(Optional.of(new RequestPriority()));
         when(helpCategoryRepository.findById(anyString())).thenReturn(Optional.of(new HelpCategory()));
         when(requestForRepository.findById(anyInt())).thenReturn(Optional.of(requestFor(2)));
-        when(requestStatusRepository.findById(anyInt())).thenReturn(Optional.of(new RequestStatus()));
+        when(requestStatusRepository.findByStatus(RequestStatusEnum.CREATED.name()))
+                .thenReturn(Optional.of(new RequestStatus()));
         when(requestIsLeadVolunteerRepository.findById(anyInt())).thenReturn(Optional.of(new RequestIsLeadVolunteer()));
         when(requestRepository.save(any(Request.class))).thenAnswer(inv -> inv.getArgument(0));
     }
@@ -141,7 +142,7 @@ class RequestServiceImplIssue14Test {
 
         Pageable pageable = PageRequest.of(0, 10);
         when(requestRepository.findAllActiveByRequesterId(
-                eq(REQUESTER_ID), eq(RequestStatusEnum.DELETED.getId()), any(Pageable.class)))
+                eq(REQUESTER_ID), eq(RequestStatusEnum.DELETED.name()), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(request)));
 
         SaayamResponse<PagedResponse<RequestSummaryDTO>> response =
@@ -169,7 +170,7 @@ class RequestServiceImplIssue14Test {
         request.setRequesterId(REQUESTER_ID);
 
         when(requestRepository.findAllActiveByRequesterId(
-                eq(REQUESTER_ID), eq(RequestStatusEnum.DELETED.getId()), any(Pageable.class)))
+                eq(REQUESTER_ID), eq(RequestStatusEnum.DELETED.name()), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(request)));
 
         // Stand in for VolunteerAssignmentServiceImpl reading volunteers_assigned.

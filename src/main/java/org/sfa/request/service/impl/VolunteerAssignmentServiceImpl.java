@@ -130,7 +130,7 @@ public class VolunteerAssignmentServiceImpl implements VolunteerAssignmentServic
     }
 
     private Request findActiveRequest(String requesterId, String requestId, Locale locale) {
-        return requestRepository.findActiveByRequestIdAndRequesterId(requestId, requesterId, RequestStatusEnum.DELETED.getId())
+        return requestRepository.findActiveByRequestIdAndRequesterId(requestId, requesterId, RequestStatusEnum.DELETED.name())
                 .orElseThrow(() -> new NotFoundException(
                         messageSource.getMessage("error.requestNotFound", new Object[]{requestId, requesterId}, locale)
                 ));

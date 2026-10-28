@@ -36,7 +36,7 @@ class VolunteerAssignmentServiceImplTest {
     @Test
     void assignVolunteerAsLeadSavesAssignment() {
         Request request = request();
-        when(requestRepository.findActiveByRequestIdAndRequesterId(eq(REQUEST_ID), eq(REQUESTER_ID), anyInt()))
+        when(requestRepository.findActiveByRequestIdAndRequesterId(eq(REQUEST_ID), eq(REQUESTER_ID), eq("DELETED")))
                 .thenReturn(Optional.of(request));
         when(volunteerAssignmentRepository.findByRequestIdAndVolunteerType(REQUEST_ID, "LEAD"))
                 .thenReturn(Optional.empty());
@@ -55,7 +55,7 @@ class VolunteerAssignmentServiceImplTest {
     @Test
     void reassigningLeadVolunteerUpdatesExistingRow() {
         Request request = request();
-        when(requestRepository.findActiveByRequestIdAndRequesterId(eq(REQUEST_ID), eq(REQUESTER_ID), anyInt()))
+        when(requestRepository.findActiveByRequestIdAndRequesterId(eq(REQUEST_ID), eq(REQUESTER_ID), eq("DELETED")))
                 .thenReturn(Optional.of(request));
         VolunteerAssignment existingLead = leadAssignment("VOL-OLD");
         existingLead.setVolunteersAssignedId(99L);
@@ -75,7 +75,7 @@ class VolunteerAssignmentServiceImplTest {
     @Test
     void assignVolunteerAsHelpingAddsToHelpingList() {
         Request request = request();
-        when(requestRepository.findActiveByRequestIdAndRequesterId(eq(REQUEST_ID), eq(REQUESTER_ID), anyInt()))
+        when(requestRepository.findActiveByRequestIdAndRequesterId(eq(REQUEST_ID), eq(REQUESTER_ID), eq("DELETED")))
                 .thenReturn(Optional.of(request));
         when(volunteerAssignmentRepository.existsByRequestIdAndVolunteerIdAndVolunteerType(REQUEST_ID, "VOL-2", "HELPING"))
                 .thenReturn(false);
@@ -92,7 +92,7 @@ class VolunteerAssignmentServiceImplTest {
     @Test
     void assigningSameHelpingVolunteerTwiceThrowsConflict() {
         Request request = request();
-        when(requestRepository.findActiveByRequestIdAndRequesterId(eq(REQUEST_ID), eq(REQUESTER_ID), anyInt()))
+        when(requestRepository.findActiveByRequestIdAndRequesterId(eq(REQUEST_ID), eq(REQUESTER_ID), eq("DELETED")))
                 .thenReturn(Optional.of(request));
         when(volunteerAssignmentRepository.existsByRequestIdAndVolunteerIdAndVolunteerType(REQUEST_ID, "VOL-2", "HELPING"))
                 .thenReturn(true);
@@ -107,7 +107,7 @@ class VolunteerAssignmentServiceImplTest {
     void removeVolunteerDeletesExistingAssignment() {
         Request request = request();
         VolunteerAssignment assignment = helpingAssignment("VOL-2");
-        when(requestRepository.findActiveByRequestIdAndRequesterId(eq(REQUEST_ID), eq(REQUESTER_ID), anyInt()))
+        when(requestRepository.findActiveByRequestIdAndRequesterId(eq(REQUEST_ID), eq(REQUESTER_ID), eq("DELETED")))
                 .thenReturn(Optional.of(request));
         when(volunteerAssignmentRepository.findByRequestIdAndVolunteerId(REQUEST_ID, "VOL-2"))
                 .thenReturn(Optional.of(assignment));
@@ -122,7 +122,7 @@ class VolunteerAssignmentServiceImplTest {
     @Test
     void removeVolunteerThrowsNotFoundWhenNoAssignmentExists() {
         Request request = request();
-        when(requestRepository.findActiveByRequestIdAndRequesterId(eq(REQUEST_ID), eq(REQUESTER_ID), anyInt()))
+        when(requestRepository.findActiveByRequestIdAndRequesterId(eq(REQUEST_ID), eq(REQUESTER_ID), eq("DELETED")))
                 .thenReturn(Optional.of(request));
         when(volunteerAssignmentRepository.findByRequestIdAndVolunteerId(REQUEST_ID, "VOL-2"))
                 .thenReturn(Optional.empty());

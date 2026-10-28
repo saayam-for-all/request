@@ -24,21 +24,21 @@ public interface RequestRepository extends JpaRepository<Request, String> {
 
     @Query("SELECT r FROM Request r " +
             "WHERE r.requesterId = :requesterId " +
-            "AND r.requestStatus.requestStatusId != :deletedStatusId")
+            "AND r.requestStatus.status != :deletedStatus")
     Page<Request> findAllActiveByRequesterId(
             @Param("requesterId") String requesterId,
-            @Param("deletedStatusId") int deletedStatusId,
+            @Param("deletedStatus") String deletedStatus,
             Pageable pageable
     );
 
     @Query("SELECT r FROM Request r " +
             "WHERE r.requestId = :requestId " +
             "AND r.requesterId = :requesterId " +
-            "AND r.requestStatus.requestStatusId != :deletedStatusId")
+            "AND r.requestStatus.status != :deletedStatus")
     Optional<Request> findActiveByRequestIdAndRequesterId(
             @Param("requestId") String requestId,
             @Param("requesterId") String requesterId,
-            @Param("deletedStatusId") int deletedStatusId
+            @Param("deletedStatus") String deletedStatus
     );
 
     @Query("SELECT r FROM Request r " +

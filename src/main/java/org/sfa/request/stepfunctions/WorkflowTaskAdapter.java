@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 /** Existing-service implementation of two workflow task contracts; no side effects. */
 @Service
 public class WorkflowTaskAdapter {
-    private static final Set<String> TERMINAL = Set.of("CANCELLED", "DELETED", "RESOLVED");
+    private static final Set<String> MATCHABLE = Set.of("CREATED", "MATCHING_VOLUNTEER", "PENDING_VOLUNTEER_ASSIGNMENT");
     private final SentimentAnalysisService sentiment;
     private final VolunteerMatchService matching;
     private final RequestRepository requests;
@@ -42,7 +42,8 @@ public class WorkflowTaskAdapter {
     }
 
     @Transactional(readOnly = true)
-    public MatchResult match(String requestId, int expectedTypeId) {
+    public MatchResult match(String requestId, int expectedTypeId, String requesterId,
+                             String categoryId, boolean calamity) {
         if (requestId == null || requestId.isBlank()) {
             throw new IllegalArgumentException("Request ID is required");
         }
@@ -50,16 +51,27 @@ public class WorkflowTaskAdapter {
                 && expectedTypeId != RequestTypeEnum.REMOTE.getId()) {
             throw new IllegalArgumentException("Unsupported request type");
         }
+        if (requesterId == null || requesterId.isBlank() || categoryId == null || categoryId.isBlank()) {
+            throw new IllegalArgumentException("Requester and category are required");
+        }
         Request request = requests.findById(requestId)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown request ID"));
         if (request.getRequestStatus() == null || request.getRequestStatus().getStatus() == null
-                || TERMINAL.contains(request.getRequestStatus().getStatus().toUpperCase(Locale.ROOT))) {
-            throw new IllegalStateException("Request is not active");
+                || !MATCHABLE.contains(request.getRequestStatus().getStatus().toUpperCase(Locale.ROOT))) {
+            throw new IllegalStateException("Request is not in a matchable status");
         }
         if (request.getRequestType() == null
                 || request.getRequestType().getRequestTypeId() == null
                 || request.getRequestType().getRequestTypeId() != expectedTypeId) {
             throw new IllegalStateException("Request type changed after submission");
+        }
+        if (!requesterId.equals(request.getRequesterId()) || request.getHelpCategory() == null
+                || !categoryId.equals(request.getHelpCategory().getCatId())
+                || calamity != Boolean.TRUE.equals(request.getIsCalamity())) {
+            throw new IllegalStateException("Request routing fields changed after submission");
+        }
+        if (calamity) {
+            throw new IllegalStateException("Calamity volunteer routing policy is not approved");
         }
         // Existing matching returns one recipient per delivery channel. Keep only
         // distinct volunteer IDs in the SFN execution history; never email addresses.

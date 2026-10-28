@@ -25,14 +25,18 @@ public class WorkflowReadTaskHandler implements RequestHandler<Map<String, Objec
         WorkflowTaskAdapter tasks = adapter != null ? adapter : SpringContext.getContext().getBean(WorkflowTaskAdapter.class);
         return switch (operation) {
             case "classify" -> Map.of("code", tasks.classify(text(input, "subject"), text(input, "description")).code());
-            case "matchInPerson" -> match(tasks, text(input, "requestId"), RequestTypeEnum.IN_PERSON.getId());
-            case "matchRemote" -> match(tasks, text(input, "requestId"), RequestTypeEnum.REMOTE.getId());
+            case "matchInPerson" -> match(tasks, input, RequestTypeEnum.IN_PERSON.getId());
+            case "matchRemote" -> match(tasks, input, RequestTypeEnum.REMOTE.getId());
             default -> throw new IllegalArgumentException("Unsupported workflow operation");
         };
     }
 
-    private static Map<String, Object> match(WorkflowTaskAdapter tasks, String requestId, int typeId) {
-        var result = tasks.match(requestId, typeId);
+    private static Map<String, Object> match(WorkflowTaskAdapter tasks, Map<String, Object> input, int typeId) {
+        if (!(input.get("isCalamity") instanceof Boolean calamity)) {
+            throw new IllegalArgumentException("isCalamity must be boolean");
+        }
+        var result = tasks.match(text(input, "requestId"), typeId,
+                text(input, "requesterId"), text(input, "categoryId"), calamity);
         return Map.of("hasCandidates", result.hasCandidates(), "candidates", result.candidates());
     }
 

@@ -2,6 +2,32 @@
 
 Base: `origin/dev` at `15abc1035f4f5d84b5b245b4052a8494a2f051a3` (fetched 2026-10-28). This plan was written before application edits.
 
+## 2026-10-28 continuation
+
+The existing Issue #88 branch remains based on that `dev` commit. Draft PR #92
+contains the Issue #78 name-based status fix but has not merged into `dev`; no
+numeric status mapping or new status write is copied here. Issues #79 and #80
+remain open with no callback implementation or approved persistence boundary.
+The pure first/next batch Lambda is now implemented and tested against the
+actual ASL payload/output shape. Its batch-size setting and the three-window
+policy still need product/Database approval. The development CloudFormation
+template validates through the AWS API but has not been deployed, because the
+remaining Lambda ARNs and dev infrastructure are absent.
+The matching Lambda now rejects a stale requester/category/type/calamity value,
+non-matchable request status, and calamity requests without an approved routing
+policy before calling the existing volunteer query.
+Database issue #157's latest comment says the bad-request table was built but
+still needs a PR; no merged database PR or deployed schema was verified. Issues
+#79 and #80 still have no implementation PR or approved new API contract, and
+PR #91 has no review comments yet. The available AWS account exposes no Step
+Functions machines or Lambda functions in `us-east-1`; an end-to-end dev run is
+therefore unavailable here.
+The continuation built a shaded jar containing the batch handler, passed the
+21 Python ASL path simulations, and passed 130 runnable Java tests (four
+skipped). The full Java suite retains only the two pre-existing Spring context
+errors caused by the absent JDBC URL. AWS returned `result: OK` and zero
+diagnostics for the Standard ASL rendered with synthetic Lambda ARNs.
+
 ## Evidence and current architecture
 
 The REST `RequestController` and Lambda `CreateRequestHandler` call `RequestServiceImpl.createRequest`. It validates lookup IDs, writes `request` (and optional guest data), populates lead/helper assignments from `volunteers_assigned`, then calls `NotificationEventService`. That service runs the local lexicon `SentimentAnalysisService`, resolves category or proximity matches, and after transaction commit sends an SQS event. The SQS listener/handler dispatches in-app and SES notifications. No Step Functions execution is started on `dev`. Cancel/delete/resume only update request status; they do not stop an execution. `ddl-auto=none`, so JPA additions require a Database team migration.
@@ -31,6 +57,7 @@ The latest #80 product comment explicitly calls for classification before good/b
 | 2 / LeadVolunteerChoice | request ID/lead flag → branch | `isLeadVolunteer` and assignment table exist | validate; skip / discovery | Partial | `VolunteerAssignmentService`, wiki Part 2 |
 | 2 / MatchInPerson | requester ID, radius/category → candidates | proximity SQL exists, no calamity exclusion zone contract | T, C; candidates / no match | Partial | `VolunteerMatchServiceImpl`, wiki Part 2 |
 | 2 / MatchRemote | category → candidates | skill SQL exists | T, C; candidates / no match | Implemented | `VolunteerMatchServiceImpl` |
+| 2 / PrepareFirstBatch, PrepareNextBatch | frozen distinct candidate IDs → `{exhausted,number,candidateIds}` | `WorkflowBatchTaskHandler` selects disjoint batches with explicit size; delivery remains #79-owned | T, C; next window / manual review after at most three | Partial | `WorkflowBatchTaskAdapter`, `database#226` |
 | 2 / NotifyCandidates | request/candidates → notification event | SQS → dispatch exists, no event dedupe ledger | T, C; wait / failure | Partial | `NotificationEventServiceImpl`, #82 |
 | 2 / WaitForAcceptance | request/recipient/task token → accept/decline | No callback store or acceptance API; #79 owns this | multi-day heartbeat/timeout; verify / next batch/manual review | Blocked | #79, wiki Part 2 |
 | 2 / VolunteerNotFound | exhausted batches → manual review | No approved status row; `database#226` proposes three 24h batches | bounded retry; manual review terminal | Blocked | `database#226`, #78 |

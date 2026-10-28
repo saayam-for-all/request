@@ -2,6 +2,59 @@
 
 Status: **blocked on deployed dev RDS evidence and Request/Database-team sign-off**.
 
+## 2026-10-28 implementation update
+
+The existing `fix/issue-78-request-status-enum` branch was merged non-destructively with
+`origin/dev` at `15abc1035f4f5d84b5b245b4052a8494a2f051a3` (merged PRs #82, #84,
+and #86). No status ID or seed was changed. The service now looks up `CREATED`,
+`CANCELLED`, and `DELETED` by their semantic names and filters active requests by
+the `DELETED` name. This covers request creation, cancellation, resumption, deletion,
+request reads, and volunteer assignment reads without assuming either disputed ID
+layout. A missing or duplicate lookup name fails the operation rather than writing
+under a different status. It does **not** establish which numeric IDs are canonical.
+
+The active create path in `dev` persists a request before sentiment filtering and
+enqueues volunteer notifications after transaction commit. Issue #88's proposed
+Step Functions integration is still in draft PR #91; this branch does not incorporate
+its ASL, workflow adapters, or status transitions. Issue #47 remains the owner of
+general enum lookup APIs. PR #74 is still draft documentation. A contributor's
+`fix/request-status-state-model` branch proposes new state IDs, but no team sign-off
+or deployed mapping verifies those IDs.
+
+An AWS read-only check reached `arn:aws:iam::088994865111:root` and returned zero
+RDS instances in `us-east-1`. `DB_DEV_HOST_URL`, `DB_DEV_USERNAME`, and
+`DB_DEV_PASSWORD` are unset. This does not prove the Saayam dev RDS does not exist;
+it means the deployed lookup and foreign-key counts remain unverified from this
+environment. Run the companion SQL against the actual dev RDS and attach its full
+output to Issue #78 before approving numeric changes. The first query records every
+lookup row, the second records request counts with both ID and name, and the third
+detects ambiguous names. All are read-only.
+
+### Approval and migration gate
+
+1. Database team supplies the dev RDS query output and confirms the owning account,
+   schema, seed source, and existing request counts.
+2. Request and Database teams approve a canonical `(ID, name, meaning)` table,
+   including whether ratings stay legacy rows and how `VOLUNTEER_NOT_FOUND`,
+   `REASSIGNMENT_REQUESTED`, and delegation are represented.
+3. Prepare a separate database-repository migration and local seed correction only
+   if the approved mapping requires them. The migration must check expected old
+   rows and foreign-key counts, run transactionally, and provide a tested rollback.
+4. Then change Java enum IDs/names, update lookup contract tests, and revise the
+   wiki and workflow docs. Test a database snapshot before deploying either service.
+
+This branch is suitable for draft review of the safe name-based fix. It does not
+satisfy Issue #78's deployed-RDS verification or canonical mapping acceptance gate.
+
+### Local validation
+
+`mvn -q clean compile` passed. `mvn -q '-Dtest=*,!RequestApplicationTests' test`
+passed with 115 tests, 0 failures, 0 errors, and 4 skips. The complete
+`mvn -q clean test` run reached 116 tests before the final added delete test;
+its only two errors were the existing `RequestApplicationTests` Spring context
+checks, which require a JDBC URL (`URL must start with 'jdbc'`). No live RDS or
+database-backed integration test ran in this environment.
+
 This investigation intentionally makes no status-ID changes. The application uses numeric foreign keys, so changing the Java enum or a seed file before checking deployed lookup rows and existing requests could silently reinterpret data.
 
 ## Evidence inspected

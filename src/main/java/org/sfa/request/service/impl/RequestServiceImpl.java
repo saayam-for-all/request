@@ -92,7 +92,7 @@ public class RequestServiceImpl implements RequestService {
         RequestType requestType = getRequestType(resolveRequestTypeId(requestDTO), locale);
         HelpCategory helpCategory = getHelpCategory(requestDTO.getHelpCategory().getCatId(), locale);
         RequestFor requestFor = getRequestFor(requestDTO.getRequestFor().getRequestForId(), locale);
-        RequestStatus requestStatus = getRequestStatus(RequestStatusEnum.CREATED.getId(), locale);
+        RequestStatus requestStatus = getRequestStatus(RequestStatusEnum.CREATED, locale);
         RequestIsLeadVolunteer isLeadVolunteer = getIsLeadVolunteer(requestDTO.getIsLeadVolunteer(), locale);
 
         Request request = buildRequest(
@@ -164,7 +164,7 @@ public class RequestServiceImpl implements RequestService {
     public SaayamResponse<PagedResponse<RequestSummaryDTO>> getRequests(String requesterId, Pageable pageable, Locale locale) {
         Sort sort = pageable.getSort().isSorted() ? pageable.getSort() : Sort.by(Sort.Direction.DESC, "requestId");
         Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
-        Page<Request> requests = requestRepository.findAllActiveByRequesterId(requesterId, RequestStatusEnum.DELETED.getId(), sortedPageable);
+        Page<Request> requests = requestRepository.findAllActiveByRequesterId(requesterId, RequestStatusEnum.DELETED.name(), sortedPageable);
 
         requests.getContent().forEach(volunteerAssignmentService::populateAssignments);
         Page<RequestSummaryDTO> summaries = requests.map(RequestSummaryDTO::fromEntity);
@@ -181,7 +181,7 @@ public class RequestServiceImpl implements RequestService {
     public SaayamResponse<Request> updateRequest(String requesterId, String requestId, RequestDTO requestDTO, Locale locale) {
         Request request = findActiveRequest(requesterId, requestId, locale);
 
-        if (request.getRequestStatus().getRequestStatusId() == RequestStatusEnum.CANCELLED.getId()) {
+        if (hasStatus(request, RequestStatusEnum.CANCELLED)) {
             throw new InvalidRequestException(
                     messageSource.getMessage("error.updateCancelledRequest", new Object[]{requestId}, locale)
             );
@@ -202,8 +202,8 @@ public class RequestServiceImpl implements RequestService {
     public SaayamResponse<Void> deleteRequest(String requesterId, String requestId, Locale locale) {
         Request request = findRequestIncludingDeleted(requesterId, requestId, locale);
 
-        if (request.getRequestStatus().getRequestStatusId() != RequestStatusEnum.DELETED.getId()) {
-            RequestStatus deletedStatus = getRequestStatus(RequestStatusEnum.DELETED.getId(), locale);
+        if (!hasStatus(request, RequestStatusEnum.DELETED)) {
+            RequestStatus deletedStatus = getRequestStatus(RequestStatusEnum.DELETED, locale);
             request.setRequestStatus(deletedStatus);
             request.setLastUpdatedAt(ZonedDateTime.now());
             requestRepository.save(request);
@@ -222,13 +222,13 @@ public class RequestServiceImpl implements RequestService {
     public SaayamResponse<Request> cancelRequest(String requesterId, String requestId, Locale locale) {
         Request request = findActiveRequest(requesterId, requestId, locale);
 
-        if (request.getRequestStatus().getRequestStatusId() == RequestStatusEnum.CANCELLED.getId()) {
+        if (hasStatus(request, RequestStatusEnum.CANCELLED)) {
             throw new InvalidRequestException(
                     messageSource.getMessage("error.requestAlreadyCancelled", new Object[]{requestId}, locale)
             );
         }
 
-        RequestStatus cancelledStatus = getRequestStatus(RequestStatusEnum.CANCELLED.getId(), locale);
+        RequestStatus cancelledStatus = getRequestStatus(RequestStatusEnum.CANCELLED, locale);
         request.setRequestStatus(cancelledStatus);
         request.setLastUpdatedAt(ZonedDateTime.now());
         Request cancelledRequest = requestRepository.save(request);
@@ -244,13 +244,13 @@ public class RequestServiceImpl implements RequestService {
     public SaayamResponse<Request> resumeRequest(String requesterId, String requestId, Locale locale) {
         Request request = findActiveRequest(requesterId, requestId, locale);
 
-        if (request.getRequestStatus().getRequestStatusId() != RequestStatusEnum.CANCELLED.getId()) {
+        if (!hasStatus(request, RequestStatusEnum.CANCELLED)) {
             throw new InvalidRequestException(
                     messageSource.getMessage("error.requestNotCancelled", new Object[]{requestId}, locale)
             );
         }
 
-        RequestStatus createdStatus = getRequestStatus(RequestStatusEnum.CREATED.getId(), locale);
+        RequestStatus createdStatus = getRequestStatus(RequestStatusEnum.CREATED, locale);
         request.setRequestStatus(createdStatus);
         request.setLastUpdatedAt(ZonedDateTime.now());
         Request resumedRequest = requestRepository.save(request);
@@ -315,15 +315,19 @@ public class RequestServiceImpl implements RequestService {
                 ));
     }
 
-    private RequestStatus getRequestStatus(Integer id, Locale locale) {
-        return requestStatusRepository.findById(id)
+    private RequestStatus getRequestStatus(RequestStatusEnum status, Locale locale) {
+        return requestStatusRepository.findByStatus(status.name())
                 .orElseThrow(() -> new NotFoundException(
-                        messageSource.getMessage("error.invalidRequestStatus", new Object[]{id}, locale)
+                        messageSource.getMessage("error.invalidRequestStatus", new Object[]{status.name()}, locale)
                 ));
     }
 
+    private boolean hasStatus(Request request, RequestStatusEnum status) {
+        return status.name().equals(request.getRequestStatus().getStatus());
+    }
+
     private Request findActiveRequest(String requesterId, String requestId, Locale locale) {
-        return requestRepository.findActiveByRequestIdAndRequesterId(requestId, requesterId, RequestStatusEnum.DELETED.getId())
+        return requestRepository.findActiveByRequestIdAndRequesterId(requestId, requesterId, RequestStatusEnum.DELETED.name())
                 .orElseThrow(() -> new NotFoundException(
                         messageSource.getMessage("error.requestNotFound", new Object[]{requestId, requesterId}, locale)
                 ));

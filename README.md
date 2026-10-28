@@ -103,32 +103,39 @@ Includes unit tests for application components.
 ## Installation & Setup
 ### Prerequisites
 - JDK 17 or later
-- Maven, or the included `./mvnw` wrapper
-- PostgreSQL
-- Docker (optional, for containerized deployment)
-- Kubernetes (optional, for cloud deployment)
+- PostgreSQL, or Docker to run PostgreSQL in a container
+- Maven is not required; the repository includes the `./mvnw` wrapper
 
 ### Clone Repository
 ```sh
 git clone https://github.com/saayam-for-all/request.git
 cd request
-git checkout dev   # application code lives on dev / test
+git checkout test
+chmod +x mvnw
 ```
 
 ### Build & Run
-#### Run Locally
-Start PostgreSQL and set `SPRING_DATASOURCE_URL`, `SPRING_DATASOURCE_USERNAME`, and `SPRING_DATASOURCE_PASSWORD`, then:
+#### Start PostgreSQL
+Use an existing PostgreSQL server, or start one with Docker:
 ```sh
-./mvnw clean install
-./mvnw spring-boot:run
+docker run -d --name saayam-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 postgres:15
 ```
 
-#### Run with Docker
-The Dockerfile copies a pre-built jar, so build it first:
+#### Run Locally
+Point the service at your database:
 ```sh
-./mvnw clean package -DskipTests
-docker build -t saayam-request .
-docker run -p 8080:8080 saayam-request
+export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/postgres
+export SPRING_DATASOURCE_USERNAME=postgres
+export SPRING_DATASOURCE_PASSWORD=postgres
+```
+Build and start the service:
+```sh
+./mvnw clean install -DskipTests
+./mvnw spring-boot:run
+```
+On first start the service creates its database schema and loads lookup data. Check that it is running:
+```sh
+curl http://localhost:8080/actuator/health
 ```
 
 ## API Documentation
@@ -138,13 +145,7 @@ http://localhost:8080/swagger-ui/index.html
 ```
 
 ## Deployment
-Replace the `<placeholder>` values in the manifests, then deploy using Kubernetes:
-```sh
-kubectl apply -f service-account.yaml
-kubectl apply -f deployment.yaml
-kubectl apply -f Service.yaml
-kubectl apply -f ingress.yaml
-```
+Kubernetes manifests (`service-account.yaml`, `deployment.yaml`, `Service.yaml`, `ingress.yaml`) and a `Dockerfile` are included as templates for AWS EKS. Update the `<placeholder>` values and review them before deploying.
 
 ## Contributing
 1. **Create** a new branch from the target branch (`dev`, `test`, or `main`)

@@ -1,0 +1,141 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Development-only Standard request workflow and deterministic batch Lambda.
+
+Parameters:
+  ArtifactBucket:
+    Type: String
+    Description: S3 bucket containing the versioned Lambda jar and ASL source.
+  LambdaJarKey:
+    Type: String
+    Description: S3 key for the Maven shaded request jar.
+  DefinitionKey:
+    Type: String
+    Description: S3 key for request-workflow.asl.json with ARN placeholders intact.
+  BatchSize:
+    Type: Number
+    MinValue: 1
+    MaxValue: 100
+    Description: Product-approved volunteer recipients per batch.
+  ClassifierLambdaArn:
+    Type: String
+  PersistenceLambdaArn:
+    Type: String
+  MatchingLambdaArn:
+    Type: String
+  CallbackRegistrationLambdaArn:
+    Type: String
+  AssignmentLambdaArn:
+    Type: String
+  OtpLambdaArn:
+    Type: String
+  LifecycleLambdaArn:
+    Type: String
+  DelegationLambdaArn:
+    Type: String
+  ManualReviewLambdaArn:
+    Type: String
+
+Resources:
+  BatchLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/saayam-request-workflow-batch-${AWS::StackName}
+      RetentionInDays: 14
+
+  BatchRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: BatchLogs
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub ${BatchLogGroup.Arn}:*
+
+  BatchLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub saayam-request-workflow-batch-${AWS::StackName}
+      Runtime: java17
+      Handler: org.sfa.request.stepfunctions.WorkflowBatchTaskHandler::handleRequest
+      Role: !GetAtt BatchRole.Arn
+      Code:
+        S3Bucket: !Ref ArtifactBucket
+        S3Key: !Ref LambdaJarKey
+      Timeout: 25
+      MemorySize: 256
+      Environment:
+        Variables:
+          SAAYAM_WORKFLOW_BATCH_SIZE: !Ref BatchSize
+
+  WorkflowRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: InvokeWorkflowTasks
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !Ref ClassifierLambdaArn
+                  - !Ref PersistenceLambdaArn
+                  - !Ref MatchingLambdaArn
+                  - !GetAtt BatchLambda.Arn
+                  - !Ref CallbackRegistrationLambdaArn
+                  - !Ref AssignmentLambdaArn
+                  - !Ref OtpLambdaArn
+                  - !Ref LifecycleLambdaArn
+                  - !Ref DelegationLambdaArn
+                  - !Ref ManualReviewLambdaArn
+
+  RequestWorkflow:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: !Sub saayam-request-workflow-${AWS::StackName}
+      StateMachineType: STANDARD
+      RoleArn: !GetAtt WorkflowRole.Arn
+      DefinitionS3Location:
+        Bucket: !Ref ArtifactBucket
+        Key: !Ref DefinitionKey
+      DefinitionSubstitutions:
+        ClassifierLambdaArn: !Ref ClassifierLambdaArn
+        PersistenceLambdaArn: !Ref PersistenceLambdaArn
+        MatchingLambdaArn: !Ref MatchingLambdaArn
+        BatchLambdaArn: !GetAtt BatchLambda.Arn
+        CallbackRegistrationLambdaArn: !Ref CallbackRegistrationLambdaArn
+        AssignmentLambdaArn: !Ref AssignmentLambdaArn
+        OtpLambdaArn: !Ref OtpLambdaArn
+        LifecycleLambdaArn: !Ref LifecycleLambdaArn
+        DelegationLambdaArn: !Ref DelegationLambdaArn
+        ManualReviewLambdaArn: !Ref ManualReviewLambdaArn
+      LoggingConfiguration:
+        Level: 'OFF'
+        IncludeExecutionData: false
+      TracingConfiguration:
+        Enabled: false
+
+Outputs:
+  StateMachineArn:
+    Value: !Ref RequestWorkflow
+  BatchLambdaArn:
+    Value: !GetAtt BatchLambda.Arn

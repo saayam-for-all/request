@@ -4,6 +4,7 @@ import org.sfa.request.constant.SaayamStatusCode;
 import org.sfa.request.dto.GuestDetailsDTO;
 import org.sfa.request.dto.ReqAddInfoDTO;
 import org.sfa.request.dto.RequestUpdateDTO;
+import org.sfa.request.dto.RequestSummaryDTO;
 import org.sfa.request.dto.AdminRequestDTO;
 import org.sfa.request.service.api.UserLambdaService;
 import org.sfa.request.model.enums.RequestForEnum;
@@ -282,18 +283,51 @@ public class RequestServiceImpl implements RequestService {
 
     @Override
     @Transactional(readOnly = true)
-    public SaayamResponse<PagedResponse<Request>> getRequests(String creatorId, Pageable pageable, Locale locale) {
-        Sort sort = pageable.getSort().isSorted() ? pageable.getSort() : Sort.by(Sort.Direction.DESC, "requestId");
-        Pageable sortedPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
-        Page<Request> requests = requestRepository.findAllActiveByCreatorId(creatorId, RequestStatusEnum.DELETED.getId(), sortedPageable);
+    public SaayamResponse<PagedResponse<RequestSummaryDTO>> getRequests(
+            String creatorId,
+            Pageable pageable,
+            Locale locale
+    ) {
+        Sort sort = pageable.getSort().isSorted()
+                ? pageable.getSort()
+                : Sort.by(Sort.Direction.DESC, "requestId");
 
-        PagedResponse<Request> pagedResponse = new PagedResponse<>(requests);
+        Pageable sortedPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                sort
+        );
 
-        logger.info("Retrieved {} requests for requester ID: {}", requests.getContent().size(), creatorId);
-        String message = messageSource.getMessage("success.requestsRetrieved", null, locale);
-        return SaayamResponse.success(SaayamStatusCode.SUCCESS, message, pagedResponse);
+        Page<Request> requests = requestRepository.findAllActiveByCreatorId(
+                creatorId,
+                RequestStatusEnum.DELETED.getId(),
+                sortedPageable
+        );
+
+        Page<RequestSummaryDTO> summaries =
+                requests.map(RequestSummaryDTO::fromEntity);
+
+        PagedResponse<RequestSummaryDTO> pagedResponse =
+                new PagedResponse<>(summaries);
+
+        logger.info(
+                "Retrieved {} requests for requester ID: {}",
+                requests.getContent().size(),
+                creatorId
+        );
+
+        String message = messageSource.getMessage(
+                "success.requestsRetrieved",
+                null,
+                locale
+        );
+
+        return SaayamResponse.success(
+                SaayamStatusCode.SUCCESS,
+                message,
+                pagedResponse
+        );
     }
-
     @Override
     @Transactional(readOnly = true)
     public SaayamResponse<PagedResponse<GetHelpRequestsDTO>> getAllHelpRequests(Pageable pageable, Locale locale) {

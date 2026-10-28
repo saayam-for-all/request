@@ -1,4 +1,5 @@
 package org.sfa.request.requesthandler;
+import org.sfa.request.dto.RequestSummaryDTO;
 
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
@@ -100,7 +101,9 @@ public class GetRequestHandler extends BaseRequestHandler<APIGatewayProxyRequest
                 int page = Integer.parseInt(requestEvent.getQueryStringParameters().getOrDefault("page", "0"));
                 int size = Integer.parseInt(requestEvent.getQueryStringParameters().getOrDefault("size", "10"));
                 Pageable pageable = PageRequest.of(page, size);
-                SaayamResponse<PagedResponse<Request>> response = requestService.getRequests(requesterId, pageable, locale);
+                SaayamResponse<PagedResponse<RequestSummaryDTO>> response =
+                        requestService.getRequests(requesterId, pageable, locale);
+
                 return createResponse(HttpStatus.OK.value(), response);
             }
         } catch (Exception e) {

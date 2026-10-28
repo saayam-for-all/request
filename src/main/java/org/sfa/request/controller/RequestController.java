@@ -1,5 +1,6 @@
 package org.sfa.request.controller;
 
+import org.sfa.request.dto.RequestSummaryDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -227,13 +228,16 @@ public ResponseEntity<SaayamResponse<PagedResponse<AdminRequestDTO>>> getAdminRe
 }
 
     @GetMapping
-    public ResponseEntity<SaayamResponse<PagedResponse<Request>>> getRequests(
+    public ResponseEntity<SaayamResponse<PagedResponse<RequestSummaryDTO>>> getRequests(
             @RequestParam @NotNull String requesterId,
             Pageable pageable,
             HttpServletRequest request
     ) {
         Locale locale = localeResolver.resolveLocale(request);
-        SaayamResponse<PagedResponse<Request>> response = requestService.getRequests(requesterId, pageable, locale);
+
+        SaayamResponse<PagedResponse<RequestSummaryDTO>> response =
+                requestService.getRequests(requesterId, pageable, locale);
+
         return ResponseEntity.ok(response);
     }
 

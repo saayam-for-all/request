@@ -1,14 +1,7 @@
 package org.sfa.request.service.api;
 
-/**
- * ClassName: SQSService
- * Package: org.sfa.request.service.api
- * Description:
- *
- * @author Fan Peng
- * Create 2024/8/15 23:43
- * @version 1.0
- */
+import org.sfa.request.dto.notification.NotificationEvent;
+
 public interface SQSService {
-    void sendMessage(Object message);
+    void sendMessage(NotificationEvent event);
 }

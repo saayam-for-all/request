@@ -3,6 +3,8 @@
 ## Overview
 Saayam For All - Request Service is a Java/Spring Boot backend microservice that owns the **lifecycle of help requests** on the Saayam platform. A requester asks for help; this service registers the request, finds and notifies matching volunteers, tracks assignment and status through completion, and keeps requesters and volunteers informed. It runs both as a Spring Boot web application and as AWS Lambda functions behind API Gateway.
 
+> **Note:** Source code currently lives on the `test` and `dev` branches.
+
 Documentation:
 
 - [Request microservice requirements](docs/request-service-requirements.md)
@@ -88,7 +90,6 @@ Handles global exception handling.
 ### `utils/`
 Contains utility/helper classes.
 - `JsonConverter.java`: JSON conversion helpers.
-- `NaturalOrderComparator.java`: Natural-order sorting.
 
 ### `resources/lang/`
 Localization support for multiple languages (English, German, Spanish, French, Hindi, Japanese, Telugu, Simplified Chinese, Traditional Chinese).
@@ -124,7 +125,7 @@ docker run -d --name saayam-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 
 #### Run Locally
 Point the service at your database:
 ```sh
-export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/postgres
+export SPRING_DATASOURCE_URL='jdbc:postgresql://localhost:5432/postgres?currentSchema=virginia_dev_saayam_rdbms'
 export SPRING_DATASOURCE_USERNAME=postgres
 export SPRING_DATASOURCE_PASSWORD=postgres
 ```
@@ -160,4 +161,3 @@ This project is licensed under the **GNU General Public License v3.0**. See the 
 For any queries or contributions, reach out to:
 - Saayam for All volunteers
 - **GitHub Repository**: [Saayam For All - Request](https://github.com/saayam-for-all/request)
-- **Spring Boot**: [Spring Boot](https://spring.io/projects/spring-boot)

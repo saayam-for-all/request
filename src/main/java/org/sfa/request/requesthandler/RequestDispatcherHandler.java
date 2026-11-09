@@ -55,6 +55,12 @@ public class RequestDispatcherHandler extends BaseRequestHandler<APIGatewayProxy
             path = path.replaceFirst("^/dev", "");
             path = path.replaceFirst("^/requests/v0.0.1", "/api");
 
+            if (path.equals("/comments")) {
+                path = "/api/requests/comments";
+            } else if (path.equals("/comments/list")) {
+                path = "/api/requests/comments/list";
+            }
+
             log.info(
                     "Incoming request: normalizedPath={}, method={}, rawEvent={}",
                     path,

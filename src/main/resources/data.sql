@@ -9,7 +9,8 @@ VALUES
     (5, 'CANCELLED', 'Request has been cancelled', now()),
     (6, 'DELETED', 'Request has been deleted', now()),
     (7, 'RATED_BY_REQUESTER', 'Request has been rated by requester', now()),
-    (8, 'RATED_BY_VOLUNTEER', 'Request has been rated by volunteer', now())
+    (8, 'RATED_BY_VOLUNTEER', 'Request has been rated by volunteer', now()),
+    (9, 'VOLUNTEER_NOT_FOUND', 'Volunteer matching was exhausted and the request awaits manual review', now())
 ON CONFLICT (request_status_id) DO NOTHING;
 
 -- Insert initial data into request_priority table

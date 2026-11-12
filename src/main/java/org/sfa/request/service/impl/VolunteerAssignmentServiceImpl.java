@@ -6,10 +6,12 @@ import org.sfa.request.dto.VolunteerAssignmentDTO;
 import org.sfa.request.exception.types.ConflictException;
 import org.sfa.request.exception.types.NotFoundException;
 import org.sfa.request.model.entity.Request;
+import org.sfa.request.model.entity.RequestStatus;
 import org.sfa.request.model.entity.VolunteerAssignment;
 import org.sfa.request.model.enums.RequestStatusEnum;
 import org.sfa.request.model.enums.VolunteerAssignmentTypeEnum;
 import org.sfa.request.repository.RequestRepository;
+import org.sfa.request.repository.RequestStatusRepository;
 import org.sfa.request.repository.VolunteerAssignmentRepository;
 import org.sfa.request.response.SaayamResponse;
 import org.sfa.request.service.api.VolunteerAssignmentService;
@@ -31,6 +33,7 @@ public class VolunteerAssignmentServiceImpl implements VolunteerAssignmentServic
 
     private final VolunteerAssignmentRepository volunteerAssignmentRepository;
     private final RequestRepository requestRepository;
+    private final RequestStatusRepository requestStatusRepository;
     private final MessageSource messageSource;
 
     @Override
@@ -100,8 +103,20 @@ public class VolunteerAssignmentServiceImpl implements VolunteerAssignmentServic
         leadAssignment.setLastUpdateDate(ZonedDateTime.now());
         volunteerAssignmentRepository.save(leadAssignment);
 
+        RequestStatus inProgressStatus = getRequestStatus(RequestStatusEnum.IN_PROGRESS.getId(), locale);
+        request.setRequestStatus(inProgressStatus);
+        request.setLastUpdatedAt(ZonedDateTime.now());
+        requestRepository.save(request);
+
         // TODO(issue-14): emit a VOLUNTEER_CHOSEN notification here once the async
         // notification pipeline (PR #66) is merged into test.
+    }
+
+    private RequestStatus getRequestStatus(Integer id, Locale locale) {
+        return requestStatusRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException(
+                        messageSource.getMessage("error.invalidRequestStatus", new Object[]{id}, locale)
+                ));
     }
 
     private void assignHelpingVolunteer(Request request, String volunteerId, Locale locale) {

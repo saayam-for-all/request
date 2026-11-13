@@ -41,8 +41,17 @@ jobs:
           distribution: temurin
           cache: maven
 
+
       - name: Run tests and generate coverage report
         run: ./mvnw -B clean verify
+
+      - name: Upload Maven test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maven-test-results
+          path: target/surefire-reports/
+          if-no-files-found: ignore
 
       - name: Upload JaCoCo coverage report
         if: always()
@@ -51,3 +60,11 @@ jobs:
           name: jacoco-coverage-report
           path: target/site/jacoco/
           if-no-files-found: warn
+
+      - name: Build Docker image
+        if: success()
+        run: |
+          docker build \
+            -t request:${{ github.sha }} \
+            .
+          echo "Docker image built successfully"

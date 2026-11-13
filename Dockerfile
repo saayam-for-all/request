@@ -1,11 +1,10 @@
-# Use an official OpenJDK runtime as a parent image
-FROM openjdk:17-jdk-slim
 
-# Set the working directory in the container
+FROM eclipse-temurin:17-jre
+
 WORKDIR /app
 
-# Copy the packaged jar file into the container
-COPY target/*.jar app.jar
+COPY target/request-0.0.1-SNAPSHOT.jar app.jar
 
-# Run the jar file
+EXPOSE 8080
+
 ENTRYPOINT ["java", "-jar", "app.jar"]

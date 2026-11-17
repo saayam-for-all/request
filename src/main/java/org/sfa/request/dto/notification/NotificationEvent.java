@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -11,10 +12,12 @@ import java.util.Locale;
 import java.util.Map;
 
 @Data
+@ToString(onlyExplicitlyIncluded = true)
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class NotificationEvent {
+    @ToString.Include
     private NotificationEventType eventType;
     private String requestId;
     private String requesterId;

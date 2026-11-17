@@ -33,7 +33,8 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class LoggingAspect {
 
-    @Around("execution(* org.sfa.request.service..*.*(..))")
+    @Around("execution(* org.sfa.request.service..*.*(..))"
+            + " && !execution(* org.sfa.request.service.api.VolunteerAssignmentService.addMissingWorkflowHelpers(..))")
     public Object logMethodExecution(ProceedingJoinPoint joinPoint) throws Throwable {
         MethodSignature methodSignature = (MethodSignature) joinPoint.getSignature();
         String className = methodSignature.getDeclaringType().getSimpleName();

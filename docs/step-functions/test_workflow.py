@@ -4,7 +4,7 @@ import json
 import unittest
 
 from build_definition import build
-from local_simulator import TaskError, load_definition, run, validate_graph
+from local_simulator import After, TaskError, load_definition, run, validate_graph
 from render_definition import PLACEHOLDER, render
 
 
@@ -40,9 +40,12 @@ class CannedTasks:
             "issueOtp": {"challengeId": "challenge-100"},
             "registerOtpCallback": {"verified": True},
             "markInProgressIfActiveAndVerified": {"updated": True},
-            "registerWorkCallback": {"action": "COMPLETE"},
-            "resolveIfActive": {"updated": True},
-            "registerRatingCallback": {"recorded": True},
+            "registerWorkCallback": {"action": "COMPLETE", "decisionId": "work-1"},
+            "resolveIfActive": {"outcome": "RESOLVED"},
+            "addHelpersIfActive": {"outcome": "HELPERS_ASSIGNED"},
+            "delegateIfActive": {"outcome": "DELEGATION_UNAVAILABLE"},
+            "confirmWorkCancellation": {"outcome": "TERMINATED"},
+            "registerRatingCallback": {"outcome": "RECORDED"},
             "queueManualReview": {"queued": True},
             "cancelIfActive": {"updated": True},
         }
@@ -82,7 +85,8 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("MarkInProgress", path)
         self.assertIn("Resolved", path)
         self.assertEqual(2, mock.calls.count("registerRatingCallback"))
-        self.assertEqual(2, len(output["ratings"]))
+        self.assertEqual({"requestId": "REQ-100", "outcome": "RESOLVED",
+                          "ratings": [{"outcome": "RECORDED"}, {"outcome": "RECORDED"}]}, output)
 
     def test_remote_routes_to_skill_match_only(self):
         mock = CannedTasks()
@@ -173,31 +177,117 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("PrepareSelfLead", path)
         self.assertNotIn("MatchInPerson", path)
 
-    def test_helpers_and_delegation_do_not_create_second_matching_path(self):
-        mock = CannedTasks(registerWorkCallback=lambda n: {"action": "ADD_HELPERS", "volunteerIds": ["VOL-2"]}
-                           if n == 1 else {"action": "DELEGATE", "organizationId": "ORG-1"})
+    def test_helpers_return_to_a_fresh_wait_without_matching_again(self):
+        mock = CannedTasks(registerWorkCallback=lambda n: {
+            "action": "ADD_HELPERS" if n == 1 else "COMPLETE", "decisionId": f"work-{n}"})
         _, path = self.simulate(mock)
         self.assertIn("AddHelpers", path)
-        self.assertEqual("Delegated", path[-1])
-        self.assertNotIn("resolveIfActive", mock.calls)
+        self.assertEqual("Resolved", path[-1])
+        self.assertEqual(2, mock.calls.count("registerWorkCallback"))
+        self.assertEqual(1, mock.calls.count("matchInPerson"))
+
+    def test_delegation_invocation_or_unavailable_dependency_is_not_handoff(self):
+        for result, terminal in [({"outcome": "DELEGATION_UNAVAILABLE"}, "WorkIntegrationUnavailable"),
+                                 ({"updated": True}, "MalformedTransition")]:
+            with self.subTest(result=result):
+                mock = CannedTasks(registerWorkCallback={"action": "DELEGATE", "decisionId": "work-1"},
+                                   delegateIfActive=result)
+                with self.assertRaisesRegex(TaskError, terminal):
+                    self.simulate(mock)
+                self.assertNotIn("resolveIfActive", mock.calls)
+                self.assertNotIn("registerRatingCallback", mock.calls)
+
+    def test_invalid_work_actions_and_missing_decision_id_fail(self):
+        for payload in ({"action": "COMPLETE"}, {"action": "UNKNOWN", "decisionId": "work-1"}):
+            with self.subTest(payload=payload):
+                mock = CannedTasks(registerWorkCallback=payload)
+                with self.assertRaisesRegex(TaskError, "MalformedCallback"):
+                    self.simulate(mock)
+                self.assertNotIn("resolveIfActive", mock.calls)
+
+    def test_rejected_helpers_do_not_reopen_work_wait(self):
+        mock = CannedTasks(registerWorkCallback={"action": "ADD_HELPERS", "decisionId": "work-1"},
+                           addHelpersIfActive={"outcome": "REJECTED"})
+        with self.assertRaisesRegex(TaskError, "WorkDecisionRejected"):
+            self.simulate(mock)
+        self.assertEqual(1, mock.calls.count("registerWorkCallback"))
+
+    def test_resolution_failure_prevents_rating_invitations(self):
+        for result, error in [(TaskError("PersistenceError"), "WorkflowFailed"),
+                              ({"outcome": "UNAVAILABLE"}, "WorkIntegrationUnavailable"),
+                              ({"updated": True}, "MalformedTransition")]:
+            with self.subTest(result=result):
+                mock = CannedTasks(resolveIfActive=result)
+                with self.assertRaisesRegex(TaskError, error):
+                    self.simulate(mock)
+                self.assertNotIn("registerRatingCallback", mock.calls)
 
     def test_deleted_or_cancelled_guard_stops_stale_transition(self):
-        mock = CannedTasks(markInProgressIfActiveAndVerified={"updated": False, "terminal": True})
+        mock = CannedTasks(markInProgressIfActiveAndVerified={"updated": True, "terminal": True})
         _, path = self.simulate(mock)
         self.assertEqual("Terminated", path[-1])
         self.assertNotIn("registerWorkCallback", mock.calls)
 
     def test_request_cancelled_during_work(self):
-        mock = CannedTasks(registerWorkCallback={"action": "CANCEL"})
-        _, path = self.simulate(mock)
-        self.assertEqual("Terminated", path[-1])
-        self.assertNotIn("resolveIfActive", mock.calls)
+        for result in ({"action": "CANCEL", "decisionId": "work-1"}, TaskError("RequestTerminated")):
+            mock = CannedTasks(registerWorkCallback=result)
+            output, path = self.simulate(mock)
+            self.assertEqual("WorkTerminated", path[-1])
+            self.assertEqual({"requestId": "REQ-100", "outcome": "TERMINATED"}, output)
+            self.assertNotIn("cancelIfActive", mock.calls)
+            self.assertNotIn("resolveIfActive", mock.calls)
 
-    def test_independent_rating_timeout(self):
-        mock = CannedTasks(registerRatingCallback=TaskError("States.Timeout"))
+    def test_work_wait_timeout_routes_to_manual_review(self):
+        _, path = self.simulate(CannedTasks(registerWorkCallback=After(2592000, None)))
+        self.assertEqual("ManualReviewQueued", path[-1])
+
+    def test_both_rating_completion_orders(self):
+        for first_delay, second_delay in [(1, 10), (10, 1)]:
+            with self.subTest(delays=(first_delay, second_delay)):
+                calls = []
+                mock = CannedTasks(registerRatingCallback=lambda n: After(
+                    [first_delay, second_delay][n - 1], {"outcome": "RECORDED"}))
+                output, _ = run(self.machine, submission(), mock, completions=calls)
+                rating_completions = [name for _, name in sorted(calls) if name.endswith("Rating")]
+                first = "Requester" if first_delay < second_delay else "Volunteer"
+                self.assertEqual("Await" + first + "Rating", rating_completions[0])
+                self.assertEqual([{"outcome": "RECORDED"}] * 2, output["ratings"])
+
+    def test_rating_timeouts_are_independent_and_seven_days(self):
+        recorded = After(1, {"outcome": "RECORDED"})
+        timed_out = After(604800, {"outcome": "RECORDED"})
+        for requester, volunteer, expected in [
+            (recorded, timed_out, ["RECORDED", "TIMEOUT"]),
+            (timed_out, recorded, ["TIMEOUT", "RECORDED"]),
+            (timed_out, timed_out, ["TIMEOUT", "TIMEOUT"]),
+        ]:
+            with self.subTest(expected=expected):
+                mock = CannedTasks(registerRatingCallback=lambda n: [requester, volunteer][n - 1])
+                output, path = self.simulate(mock)
+                self.assertEqual("Resolved", path[-1])
+                self.assertEqual(expected, [row["outcome"] for row in output["ratings"]])
+
+    def test_malformed_and_failed_rating_callbacks_are_not_recorded(self):
+        for response in ({"recorded": True}, TaskError("RatingStoreUnavailable")):
+            mock = CannedTasks(registerRatingCallback=lambda n: response if n == 1 else {"outcome": "RECORDED"})
+            output, path = self.simulate(mock)
+            self.assertEqual("Resolved", path[-1])
+            self.assertEqual([{"outcome": "ERROR"}, {"outcome": "RECORDED"}], output["ratings"])
+
+    def test_cancellation_during_ratings_preserves_branch_results(self):
+        mock = CannedTasks(registerRatingCallback=lambda n: {"outcome": "RECORDED"}
+                           if n == 1 else TaskError("RequestTerminated"))
         output, path = self.simulate(mock)
-        self.assertEqual("Resolved", path[-1])
-        self.assertEqual([{"outcome": "TIMEOUT"}, {"outcome": "TIMEOUT"}], output["ratings"])
+        self.assertEqual("RatingCollectionCancelled", path[-1])
+        self.assertEqual("TERMINATED", output["outcome"])
+        self.assertEqual([{"outcome": "RECORDED"}, {"outcome": "CANCELLED"}], output["ratings"])
+
+    def test_absolute_execution_expiration_during_ratings(self):
+        mock = CannedTasks(registerWorkCallback=lambda n: After(
+            2500000, {"action": "ADD_HELPERS" if n < 3 else "COMPLETE", "decisionId": f"work-{n}"}),
+            registerRatingCallback=lambda _: After(604800, None))
+        with self.assertRaisesRegex(TaskError, "ExecutionTimedOut"):
+            self.simulate(mock)
 
 
 if __name__ == "__main__":

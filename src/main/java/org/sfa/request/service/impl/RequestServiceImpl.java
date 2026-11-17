@@ -179,7 +179,7 @@ public class RequestServiceImpl implements RequestService {
     @Override
     @Transactional
     public SaayamResponse<Request> updateRequest(String requesterId, String requestId, RequestDTO requestDTO, Locale locale) {
-        Request request = findActiveRequest(requesterId, requestId, locale);
+        Request request = findActiveRequestForUpdate(requesterId, requestId, locale);
 
         if (request.getRequestStatus().getRequestStatusId() == RequestStatusEnum.CANCELLED.getId()) {
             throw new InvalidRequestException(
@@ -200,7 +200,7 @@ public class RequestServiceImpl implements RequestService {
     @Override
     @Transactional
     public SaayamResponse<Void> deleteRequest(String requesterId, String requestId, Locale locale) {
-        Request request = findRequestIncludingDeleted(requesterId, requestId, locale);
+        Request request = findRequestIncludingDeletedForUpdate(requesterId, requestId, locale);
 
         if (request.getRequestStatus().getRequestStatusId() != RequestStatusEnum.DELETED.getId()) {
             RequestStatus deletedStatus = getRequestStatus(RequestStatusEnum.DELETED.getId(), locale);
@@ -220,7 +220,7 @@ public class RequestServiceImpl implements RequestService {
     @Override
     @Transactional
     public SaayamResponse<Request> cancelRequest(String requesterId, String requestId, Locale locale) {
-        Request request = findActiveRequest(requesterId, requestId, locale);
+        Request request = findActiveRequestForUpdate(requesterId, requestId, locale);
 
         if (request.getRequestStatus().getRequestStatusId() == RequestStatusEnum.CANCELLED.getId()) {
             throw new InvalidRequestException(
@@ -242,7 +242,7 @@ public class RequestServiceImpl implements RequestService {
     @Override
     @Transactional
     public SaayamResponse<Request> resumeRequest(String requesterId, String requestId, Locale locale) {
-        Request request = findActiveRequest(requesterId, requestId, locale);
+        Request request = findActiveRequestForUpdate(requesterId, requestId, locale);
 
         if (request.getRequestStatus().getRequestStatusId() != RequestStatusEnum.CANCELLED.getId()) {
             throw new InvalidRequestException(
@@ -329,8 +329,15 @@ public class RequestServiceImpl implements RequestService {
                 ));
     }
 
-    private Request findRequestIncludingDeleted(String requesterId, String requestId, Locale locale) {
-        return requestRepository.findByRequestIdAndRequesterIdIncludingDeleted(requestId, requesterId)
+    private Request findActiveRequestForUpdate(String requesterId, String requestId, Locale locale) {
+        return requestRepository.findActiveByRequestIdAndRequesterIdForUpdate(requestId, requesterId, RequestStatusEnum.DELETED.getId())
+                .orElseThrow(() -> new NotFoundException(
+                        messageSource.getMessage("error.requestNotFound", new Object[]{requestId, requesterId}, locale)
+                ));
+    }
+
+    private Request findRequestIncludingDeletedForUpdate(String requesterId, String requestId, Locale locale) {
+        return requestRepository.findByRequestIdAndRequesterIdIncludingDeletedForUpdate(requestId, requesterId)
                 .orElseThrow(() -> new NotFoundException(
                         messageSource.getMessage("error.requestNotFound", new Object[]{requestId, requesterId}, locale)
                 ));

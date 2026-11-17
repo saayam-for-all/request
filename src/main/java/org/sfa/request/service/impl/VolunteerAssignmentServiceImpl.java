@@ -17,9 +17,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 
@@ -119,18 +122,44 @@ public class VolunteerAssignmentServiceImpl implements VolunteerAssignmentServic
             );
         }
 
-        VolunteerAssignment helpingAssignment = VolunteerAssignment.builder()
-                .requestId(request.getRequestId())
+        volunteerAssignmentRepository.save(helpingAssignment(request.getRequestId(), volunteerId));
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.MANDATORY)
+    public boolean addMissingWorkflowHelpers(String requestId, List<String> volunteerIds) {
+        var helpingOnly = new HashMap<String, Boolean>();
+        for (VolunteerAssignment assignment : volunteerAssignmentRepository.findByRequestId(requestId)) {
+            boolean helping = VolunteerAssignmentTypeEnum.HELPING.getValue().equals(assignment.getVolunteerType());
+            helpingOnly.merge(assignment.getVolunteerId(), helping, Boolean::logicalAnd);
+        }
+
+        var additions = new ArrayList<VolunteerAssignment>();
+        for (String id : volunteerIds.stream().distinct().toList()) {
+            Boolean alreadyHelping = helpingOnly.get(id);
+            if (alreadyHelping == null) {
+                additions.add(helpingAssignment(requestId, id));
+            } else if (!alreadyHelping) {
+                return false;
+            }
+        }
+        if (!additions.isEmpty()) {
+            volunteerAssignmentRepository.saveAll(additions);
+        }
+        return true;
+    }
+
+    private VolunteerAssignment helpingAssignment(String requestId, String volunteerId) {
+        return VolunteerAssignment.builder()
+                .requestId(requestId)
                 .volunteerId(volunteerId)
                 .volunteerType(VolunteerAssignmentTypeEnum.HELPING.getValue())
                 .lastUpdateDate(ZonedDateTime.now())
                 .build();
-
-        volunteerAssignmentRepository.save(helpingAssignment);
     }
 
     private Request findActiveRequest(String requesterId, String requestId, Locale locale) {
-        return requestRepository.findActiveByRequestIdAndRequesterId(requestId, requesterId, RequestStatusEnum.DELETED.getId())
+        return requestRepository.findActiveByRequestIdAndRequesterIdForUpdate(requestId, requesterId, RequestStatusEnum.DELETED.getId())
                 .orElseThrow(() -> new NotFoundException(
                         messageSource.getMessage("error.requestNotFound", new Object[]{requestId, requesterId}, locale)
                 ));

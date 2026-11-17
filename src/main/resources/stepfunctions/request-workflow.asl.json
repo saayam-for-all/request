@@ -430,6 +430,7 @@
           "ErrorEquals": [
             "States.Timeout"
           ],
+          "ResultPath": null,
           "Next": "PrepareNextBatch"
         },
         {
@@ -585,6 +586,7 @@
           "ErrorEquals": [
             "States.Timeout"
           ],
+          "ResultPath": null,
           "Next": "AwaitReassignmentApproval"
         },
         {
@@ -644,6 +646,7 @@
           "ErrorEquals": [
             "States.Timeout"
           ],
+          "ResultPath": null,
           "Next": "ManualReview"
         },
         {
@@ -682,7 +685,9 @@
           "executionId.$": "$$.Execution.Id",
           "requestId.$": "$.persistedInvoke.Payload.requestId",
           "challengeId.$": "$.otpInvoke.Payload.challengeId",
-          "verification.$": "$.otpVerification"
+          "verification": {
+            "verified.$": "$.otpVerification.verified"
+          }
         }
       },
       "ResultPath": "$.progressInvoke",
@@ -714,17 +719,40 @@
       "Type": "Choice",
       "Choices": [
         {
-          "Variable": "$.progressInvoke.Payload.updated",
-          "BooleanEquals": true,
-          "Next": "AwaitWorkCompletion"
+          "And": [
+            {
+              "Variable": "$.progressInvoke.Payload.terminal",
+              "IsBoolean": true
+            },
+            {
+              "Variable": "$.progressInvoke.Payload.terminal",
+              "BooleanEquals": true
+            }
+          ],
+          "Next": "Terminated"
         },
         {
-          "Variable": "$.progressInvoke.Payload.terminal",
-          "BooleanEquals": true,
-          "Next": "Terminated"
+          "And": [
+            {
+              "Variable": "$.progressInvoke.Payload.updated",
+              "IsBoolean": true
+            },
+            {
+              "Variable": "$.progressInvoke.Payload.updated",
+              "BooleanEquals": true
+            }
+          ],
+          "Next": "EnterActiveWork"
         }
       ],
       "Default": "MalformedTransition"
+    },
+    "EnterActiveWork": {
+      "Type": "Pass",
+      "Parameters": {
+        "requestId.$": "$.persistedInvoke.Payload.requestId"
+      },
+      "Next": "AwaitWorkCompletion"
     },
     "AwaitWorkCompletion": {
       "Type": "Task",
@@ -734,7 +762,7 @@
         "Payload": {
           "operation": "registerWorkCallback",
           "executionId.$": "$$.Execution.Id",
-          "requestId.$": "$.persistedInvoke.Payload.requestId",
+          "requestId.$": "$.requestId",
           "taskToken.$": "$$.Task.Token"
         }
       },
@@ -757,13 +785,21 @@
           "ErrorEquals": [
             "States.Timeout"
           ],
-          "Next": "ManualReview"
+          "ResultPath": null,
+          "Next": "ActiveWorkTimedOut"
+        },
+        {
+          "ErrorEquals": [
+            "RequestTerminated"
+          ],
+          "ResultPath": null,
+          "Next": "WorkTerminated"
         },
         {
           "ErrorEquals": [
             "States.ALL"
           ],
-          "ResultPath": "$.error",
+          "ResultPath": null,
           "Next": "WorkflowFailed"
         }
       ],
@@ -773,24 +809,72 @@
       "Type": "Choice",
       "Choices": [
         {
-          "Variable": "$.work.action",
-          "StringEquals": "ADD_HELPERS",
+          "And": [
+            {
+              "Variable": "$.work.decisionId",
+              "IsString": true
+            },
+            {
+              "Variable": "$.work.action",
+              "IsString": true
+            },
+            {
+              "Variable": "$.work.action",
+              "StringEquals": "ADD_HELPERS"
+            }
+          ],
           "Next": "AddHelpers"
         },
         {
-          "Variable": "$.work.action",
-          "StringEquals": "DELEGATE",
+          "And": [
+            {
+              "Variable": "$.work.decisionId",
+              "IsString": true
+            },
+            {
+              "Variable": "$.work.action",
+              "IsString": true
+            },
+            {
+              "Variable": "$.work.action",
+              "StringEquals": "DELEGATE"
+            }
+          ],
           "Next": "DelegateOrganization"
         },
         {
-          "Variable": "$.work.action",
-          "StringEquals": "COMPLETE",
+          "And": [
+            {
+              "Variable": "$.work.decisionId",
+              "IsString": true
+            },
+            {
+              "Variable": "$.work.action",
+              "IsString": true
+            },
+            {
+              "Variable": "$.work.action",
+              "StringEquals": "COMPLETE"
+            }
+          ],
           "Next": "MarkResolved"
         },
         {
-          "Variable": "$.work.action",
-          "StringEquals": "CANCEL",
-          "Next": "CancelByAdmin"
+          "And": [
+            {
+              "Variable": "$.work.decisionId",
+              "IsString": true
+            },
+            {
+              "Variable": "$.work.action",
+              "IsString": true
+            },
+            {
+              "Variable": "$.work.action",
+              "StringEquals": "CANCEL"
+            }
+          ],
+          "Next": "ConfirmWorkCancellation"
         }
       ],
       "Default": "MalformedCallback"
@@ -799,15 +883,15 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName": "${AssignmentLambdaArn}",
+        "FunctionName": "${FinalizationLambdaArn}",
         "Payload": {
           "operation": "addHelpersIfActive",
           "executionId.$": "$$.Execution.Id",
-          "requestId.$": "$.persistedInvoke.Payload.requestId",
-          "volunteerIds.$": "$.work.volunteerIds"
+          "requestId.$": "$.requestId",
+          "decisionId.$": "$.work.decisionId"
         }
       },
-      "ResultPath": "$.helpersInvoke",
+      "ResultPath": "$.finalization",
       "TimeoutSeconds": 30,
       "Retry": [
         {
@@ -826,25 +910,25 @@
           "ErrorEquals": [
             "States.ALL"
           ],
-          "ResultPath": "$.error",
+          "ResultPath": null,
           "Next": "WorkflowFailed"
         }
       ],
-      "Next": "AwaitWorkCompletion"
+      "Next": "CheckHelpers"
     },
     "DelegateOrganization": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName": "${DelegationLambdaArn}",
+        "FunctionName": "${FinalizationLambdaArn}",
         "Payload": {
           "operation": "delegateIfActive",
           "executionId.$": "$$.Execution.Id",
-          "requestId.$": "$.persistedInvoke.Payload.requestId",
-          "organizationId.$": "$.work.organizationId"
+          "requestId.$": "$.requestId",
+          "decisionId.$": "$.work.decisionId"
         }
       },
-      "ResultPath": "$.delegationInvoke",
+      "ResultPath": "$.finalization",
       "TimeoutSeconds": 30,
       "Retry": [
         {
@@ -863,24 +947,25 @@
           "ErrorEquals": [
             "States.ALL"
           ],
-          "ResultPath": "$.error",
+          "ResultPath": null,
           "Next": "WorkflowFailed"
         }
       ],
-      "Next": "Delegated"
+      "Next": "CheckDelegation"
     },
     "MarkResolved": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName": "${LifecycleLambdaArn}",
+        "FunctionName": "${FinalizationLambdaArn}",
         "Payload": {
           "operation": "resolveIfActive",
           "executionId.$": "$$.Execution.Id",
-          "requestId.$": "$.persistedInvoke.Payload.requestId"
+          "requestId.$": "$.requestId",
+          "decisionId.$": "$.work.decisionId"
         }
       },
-      "ResultPath": "$.resolutionInvoke",
+      "ResultPath": "$.finalization",
       "TimeoutSeconds": 30,
       "Retry": [
         {
@@ -899,27 +984,274 @@
           "ErrorEquals": [
             "States.ALL"
           ],
-          "ResultPath": "$.error",
+          "ResultPath": null,
           "Next": "WorkflowFailed"
         }
       ],
       "Next": "CheckResolved"
     },
+    "ConfirmWorkCancellation": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${FinalizationLambdaArn}",
+        "Payload": {
+          "operation": "confirmWorkCancellation",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.requestId",
+          "decisionId.$": "$.work.decisionId"
+        }
+      },
+      "ResultPath": "$.finalization",
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": null,
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "CheckWorkCancellation"
+    },
+    "CheckHelpers": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "TERMINATED"
+            }
+          ],
+          "Next": "WorkTerminated"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "REJECTED"
+            }
+          ],
+          "Next": "WorkDecisionRejected"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "UNAVAILABLE"
+            }
+          ],
+          "Next": "WorkIntegrationUnavailable"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "HELPERS_ASSIGNED"
+            }
+          ],
+          "Next": "ResetActiveWork"
+        }
+      ],
+      "Default": "MalformedTransition"
+    },
+    "CheckDelegation": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "TERMINATED"
+            }
+          ],
+          "Next": "WorkTerminated"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "REJECTED"
+            }
+          ],
+          "Next": "WorkDecisionRejected"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "UNAVAILABLE"
+            }
+          ],
+          "Next": "WorkIntegrationUnavailable"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "DELEGATION_UNAVAILABLE"
+            }
+          ],
+          "Next": "WorkIntegrationUnavailable"
+        }
+      ],
+      "Default": "MalformedTransition"
+    },
     "CheckResolved": {
       "Type": "Choice",
       "Choices": [
         {
-          "Variable": "$.resolutionInvoke.Payload.updated",
-          "BooleanEquals": true,
-          "Next": "CollectRatings"
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "TERMINATED"
+            }
+          ],
+          "Next": "WorkTerminated"
         },
         {
-          "Variable": "$.resolutionInvoke.Payload.terminal",
-          "BooleanEquals": true,
-          "Next": "Terminated"
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "REJECTED"
+            }
+          ],
+          "Next": "WorkDecisionRejected"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "UNAVAILABLE"
+            }
+          ],
+          "Next": "WorkIntegrationUnavailable"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "RESOLVED"
+            }
+          ],
+          "Next": "CollectRatings"
         }
       ],
       "Default": "MalformedTransition"
+    },
+    "CheckWorkCancellation": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "TERMINATED"
+            }
+          ],
+          "Next": "WorkTerminated"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "REJECTED"
+            }
+          ],
+          "Next": "WorkDecisionRejected"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "IsString": true
+            },
+            {
+              "Variable": "$.finalization.Payload.outcome",
+              "StringEquals": "UNAVAILABLE"
+            }
+          ],
+          "Next": "WorkIntegrationUnavailable"
+        }
+      ],
+      "Default": "MalformedTransition"
+    },
+    "ResetActiveWork": {
+      "Type": "Pass",
+      "Parameters": {
+        "requestId.$": "$.requestId"
+      },
+      "Next": "AwaitWorkCompletion"
     },
     "CollectRatings": {
       "Type": "Parallel",
@@ -935,7 +1267,7 @@
                 "Payload": {
                   "operation": "registerRatingCallback",
                   "executionId.$": "$$.Execution.Id",
-                  "requestId.$": "$.persistedInvoke.Payload.requestId",
+                  "requestId.$": "$.requestId",
                   "purpose": "Requester",
                   "taskToken.$": "$$.Task.Token"
                 }
@@ -959,19 +1291,51 @@
                   "ErrorEquals": [
                     "States.Timeout"
                   ],
+                  "ResultPath": null,
                   "Next": "RequesterRatingTimedOut"
+                },
+                {
+                  "ErrorEquals": [
+                    "RequestTerminated"
+                  ],
+                  "ResultPath": null,
+                  "Next": "RequesterRatingCancelled"
                 },
                 {
                   "ErrorEquals": [
                     "States.ALL"
                   ],
+                  "ResultPath": null,
                   "Next": "RequesterRatingFailed"
                 }
               ],
-              "Next": "RequesterRatingRecorded"
+              "Next": "RequesterRatingDecision"
+            },
+            "RequesterRatingDecision": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "And": [
+                    {
+                      "Variable": "$.rating.outcome",
+                      "IsString": true
+                    },
+                    {
+                      "Variable": "$.rating.outcome",
+                      "StringEquals": "RECORDED"
+                    }
+                  ],
+                  "Next": "RequesterRatingRecorded"
+                }
+              ],
+              "Default": "RequesterRatingFailed"
             },
             "RequesterRatingRecorded": {
-              "Type": "Succeed"
+              "Type": "Pass",
+              "Result": {
+                "outcome": "RECORDED"
+              },
+              "End": true
             },
             "RequesterRatingTimedOut": {
               "Type": "Pass",
@@ -984,6 +1348,13 @@
               "Type": "Pass",
               "Result": {
                 "outcome": "ERROR"
+              },
+              "End": true
+            },
+            "RequesterRatingCancelled": {
+              "Type": "Pass",
+              "Result": {
+                "outcome": "CANCELLED"
               },
               "End": true
             }
@@ -1000,7 +1371,7 @@
                 "Payload": {
                   "operation": "registerRatingCallback",
                   "executionId.$": "$$.Execution.Id",
-                  "requestId.$": "$.persistedInvoke.Payload.requestId",
+                  "requestId.$": "$.requestId",
                   "purpose": "Volunteer",
                   "taskToken.$": "$$.Task.Token"
                 }
@@ -1024,19 +1395,51 @@
                   "ErrorEquals": [
                     "States.Timeout"
                   ],
+                  "ResultPath": null,
                   "Next": "VolunteerRatingTimedOut"
+                },
+                {
+                  "ErrorEquals": [
+                    "RequestTerminated"
+                  ],
+                  "ResultPath": null,
+                  "Next": "VolunteerRatingCancelled"
                 },
                 {
                   "ErrorEquals": [
                     "States.ALL"
                   ],
+                  "ResultPath": null,
                   "Next": "VolunteerRatingFailed"
                 }
               ],
-              "Next": "VolunteerRatingRecorded"
+              "Next": "VolunteerRatingDecision"
+            },
+            "VolunteerRatingDecision": {
+              "Type": "Choice",
+              "Choices": [
+                {
+                  "And": [
+                    {
+                      "Variable": "$.rating.outcome",
+                      "IsString": true
+                    },
+                    {
+                      "Variable": "$.rating.outcome",
+                      "StringEquals": "RECORDED"
+                    }
+                  ],
+                  "Next": "VolunteerRatingRecorded"
+                }
+              ],
+              "Default": "VolunteerRatingFailed"
             },
             "VolunteerRatingRecorded": {
-              "Type": "Succeed"
+              "Type": "Pass",
+              "Result": {
+                "outcome": "RECORDED"
+              },
+              "End": true
             },
             "VolunteerRatingTimedOut": {
               "Type": "Pass",
@@ -1051,12 +1454,97 @@
                 "outcome": "ERROR"
               },
               "End": true
+            },
+            "VolunteerRatingCancelled": {
+              "Type": "Pass",
+              "Result": {
+                "outcome": "CANCELLED"
+              },
+              "End": true
             }
           }
         }
       ],
       "ResultPath": "$.ratings",
-      "Next": "Resolved"
+      "Next": "SummarizeRatings"
+    },
+    "SummarizeRatings": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.ratings[0].outcome",
+          "StringEquals": "CANCELLED",
+          "Next": "RatingCollectionCancelled"
+        },
+        {
+          "Variable": "$.ratings[1].outcome",
+          "StringEquals": "CANCELLED",
+          "Next": "RatingCollectionCancelled"
+        }
+      ],
+      "Default": "Resolved"
+    },
+    "Resolved": {
+      "Type": "Pass",
+      "Parameters": {
+        "requestId.$": "$.requestId",
+        "outcome": "RESOLVED",
+        "ratings.$": "$.ratings"
+      },
+      "End": true
+    },
+    "RatingCollectionCancelled": {
+      "Type": "Pass",
+      "Parameters": {
+        "requestId.$": "$.requestId",
+        "outcome": "TERMINATED",
+        "ratings.$": "$.ratings"
+      },
+      "End": true
+    },
+    "WorkTerminated": {
+      "Type": "Pass",
+      "Parameters": {
+        "requestId.$": "$.requestId",
+        "outcome": "TERMINATED"
+      },
+      "End": true
+    },
+    "ActiveWorkTimedOut": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${ManualReviewLambdaArn}",
+        "Payload": {
+          "operation": "queueManualReview",
+          "executionId.$": "$$.Execution.Id",
+          "requestId.$": "$.requestId"
+        }
+      },
+      "ResultPath": null,
+      "TimeoutSeconds": 30,
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException"
+          ],
+          "IntervalSeconds": 2,
+          "BackoffRate": 2,
+          "MaxAttempts": 3
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "States.ALL"
+          ],
+          "ResultPath": "$.error",
+          "Next": "WorkflowFailed"
+        }
+      ],
+      "Next": "ManualReviewQueued"
     },
     "CancelByAdmin": {
       "Type": "Task",
@@ -1139,12 +1627,6 @@
     "Terminated": {
       "Type": "Succeed"
     },
-    "Delegated": {
-      "Type": "Succeed"
-    },
-    "Resolved": {
-      "Type": "Succeed"
-    },
     "InvalidSubmission": {
       "Type": "Fail",
       "Error": "InvalidSubmission",
@@ -1193,6 +1675,16 @@
     "WorkflowFailed": {
       "Type": "Fail",
       "Error": "WorkflowFailed",
+      "Cause": "Workflow input, task output, or dependency failed"
+    },
+    "WorkDecisionRejected": {
+      "Type": "Fail",
+      "Error": "WorkDecisionRejected",
+      "Cause": "Workflow input, task output, or dependency failed"
+    },
+    "WorkIntegrationUnavailable": {
+      "Type": "Fail",
+      "Error": "WorkIntegrationUnavailable",
       "Cause": "Workflow input, task output, or dependency failed"
     }
   }

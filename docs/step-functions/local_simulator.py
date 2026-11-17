@@ -2,6 +2,8 @@
 
 import copy
 import json
+import re
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -16,11 +18,29 @@ class TaskError(Exception):
 
 def get_path(data, path):
     value = data
-    for part in path.removeprefix("$.").split("."):
-        if not isinstance(value, dict) or part not in value:
+    if path == "$":
+        return value
+    for part in re.split(r"\.|\[|\]", path.removeprefix("$.")):
+        if not part:
+            continue
+        if isinstance(value, list) and part.isdigit() and int(part) < len(value):
+            value = value[int(part)]
+        elif isinstance(value, dict) and part in value:
+            value = value[part]
+        else:
             return None
-        value = value[part]
     return value
+
+
+def parameters(specification, data):
+    return {key.removesuffix(".$"): get_path(data, value) if key.endswith(".$") else value
+            for key, value in specification.items()}
+
+
+@dataclass(frozen=True)
+class After:
+    seconds: int
+    response: object
 
 
 def put_path(data, path, value):
@@ -32,12 +52,15 @@ def put_path(data, path, value):
 
 
 def matches(rule, data):
+    if "And" in rule:
+        return all(matches(condition, data) for condition in rule["And"])
     value = get_path(data, rule["Variable"])
     for comparator in ("NumericEquals", "BooleanEquals", "StringEquals"):
         if comparator in rule:
             return type(value) is type(rule[comparator]) and value == rule[comparator]
-    if "IsString" in rule:
-        return isinstance(value, str) == rule["IsString"]
+    for comparator, expected_type in [("IsString", str), ("IsBoolean", bool)]:
+        if comparator in rule:
+            return isinstance(value, expected_type) == rule[comparator]
     raise AssertionError(f"Unsupported Choice rule: {rule}")
 
 
@@ -61,10 +84,18 @@ def validate_graph(machine):
     check(machine)
 
 
-def run(machine, submission, mock, max_steps=100):
+def run(machine, submission, mock, max_steps=100, completions=None):
     visited = []
 
-    def execute(scope, initial):
+    deadline = machine.get("TimeoutSeconds", float("inf"))
+
+    def execute(scope, initial, elapsed):
+        def advance(seconds):
+            nonlocal elapsed
+            elapsed += seconds
+            if elapsed >= deadline:
+                raise TaskError("ExecutionTimedOut")
+
         data = copy.deepcopy(initial)
         name = scope["StartAt"]
         while True:
@@ -83,21 +114,40 @@ def run(machine, submission, mock, max_steps=100):
                 while True:
                     try:
                         value = mock(name, operation, data)
+                        if isinstance(value, After):
+                            advance(min(value.seconds, state["TimeoutSeconds"]))
+                            if value.seconds >= state["TimeoutSeconds"]:
+                                raise TaskError("States.Timeout")
+                            value = value.response
+                        if isinstance(value, TaskError):
+                            raise value
+                        if completions is not None:
+                            completions.append((elapsed, name))
                         if not state["Resource"].endswith(".waitForTaskToken"):
                             value = {"Payload": value}
-                        put_path(data, state["ResultPath"], value)
+                        result_path = state.get("ResultPath", "$")
+                        if result_path == "$":
+                            data = value
+                        elif result_path is not None:
+                            put_path(data, result_path, value)
                         break
                     except TaskError as error:
+                        if error.code == "ExecutionTimedOut":
+                            raise
                         retry = next((x for x in state["Retry"] if error.code in x["ErrorEquals"]), None)
                         if retry and attempts < retry["MaxAttempts"]:
+                            advance(retry["IntervalSeconds"] * retry.get("BackoffRate", 2) ** attempts)
                             attempts += 1
                             continue
                         catcher = next((x for x in state["Catch"]
                                         if error.code in x["ErrorEquals"] or "States.ALL" in x["ErrorEquals"]), None)
                         if not catcher:
                             raise
-                        if "ResultPath" in catcher:
-                            put_path(data, catcher["ResultPath"], {"Error": error.code})
+                        error_path = catcher.get("ResultPath", "$")
+                        if error_path == "$":
+                            data = {"Error": error.code}
+                        elif error_path is not None:
+                            put_path(data, error_path, {"Error": error.code})
                         name = catcher["Next"]
                         caught = True
                         break
@@ -105,29 +155,34 @@ def run(machine, submission, mock, max_steps=100):
                     continue
                 name = state.get("Next")
                 if name is None:
-                    return data
+                    return data, elapsed
                 continue
             if kind == "Parallel":
-                put_path(data, state["ResultPath"], [execute(branch, data) for branch in state["Branches"]])
+                branch_results = [execute(branch, data, elapsed) for branch in state["Branches"]]
+                put_path(data, state["ResultPath"], [result for result, _ in branch_results])
+                elapsed = max(seconds for _, seconds in branch_results)
                 name = state["Next"]
                 continue
             if kind == "Wait":
+                advance(state["Seconds"])
                 name = state["Next"]
                 continue
             if kind == "Pass":
                 if "Result" in state:
                     data = state["Result"]
+                elif "Parameters" in state:
+                    data = parameters(state["Parameters"], data)
                 if state.get("End"):
-                    return data
+                    return data, elapsed
                 name = state["Next"]
                 continue
             if kind == "Succeed":
-                return data
+                return data, elapsed
             if kind == "Fail":
                 raise TaskError(state["Error"])
             raise AssertionError(f"Unsupported state: {kind}")
 
-    output = execute(machine, submission)
+    output, _ = execute(machine, submission, 0)
     return output, visited
 
 

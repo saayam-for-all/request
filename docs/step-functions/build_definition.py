@@ -35,8 +35,17 @@ def choice(rules, default):
     return {"Type": "Choice", "Choices": rules, "Default": default}
 
 
+def condition(path, comparator, value):
+    return {"Variable": path, comparator: value}
+
+
 def rule(path, comparator, value, next_state):
-    return {"Variable": path, comparator: value, "Next": next_state}
+    return {**condition(path, comparator, value), "Next": next_state}
+
+
+def guarded_rule(path, value_type, value, destination):
+    return {"And": [condition(path, "Is" + value_type, True), condition(path, value_type + "Equals", value)],
+            "Next": destination}
 
 
 def rating_branch(purpose):
@@ -44,21 +53,25 @@ def rating_branch(purpose):
     recorded = purpose + "RatingRecorded"
     timed_out = purpose + "RatingTimedOut"
     failed = purpose + "RatingFailed"
+    cancelled = purpose + "RatingCancelled"
+    decision = purpose + "RatingDecision"
     return {
         "StartAt": name,
         "States": {
             name: task(
-                "registerRatingCallback", "CallbackRegistrationLambdaArn", recorded, "$.rating",
-                {"requestId.$": "$.persistedInvoke.Payload.requestId", "purpose": purpose},
+                "registerRatingCallback", "CallbackRegistrationLambdaArn", decision, "$.rating",
+                {"requestId.$": "$.requestId", "purpose": purpose},
                 callback=True, timeout=604800,
                 catches=[
-                    {"ErrorEquals": ["States.Timeout"], "Next": timed_out},
-                    {"ErrorEquals": ["States.ALL"], "Next": failed},
+                    {"ErrorEquals": ["States.Timeout"], "ResultPath": None, "Next": timed_out},
+                    {"ErrorEquals": ["RequestTerminated"], "ResultPath": None, "Next": cancelled},
+                    {"ErrorEquals": ["States.ALL"], "ResultPath": None, "Next": failed},
                 ],
             ),
-            recorded: {"Type": "Succeed"},
-            timed_out: {"Type": "Pass", "Result": {"outcome": "TIMEOUT"}, "End": True},
-            failed: {"Type": "Pass", "Result": {"outcome": "ERROR"}, "End": True},
+            decision: choice([guarded_rule("$.rating.outcome", "String", "RECORDED", recorded)], failed),
+            **{state: {"Type": "Pass", "Result": {"outcome": outcome}, "End": True}
+               for state, outcome in [(recorded, "RECORDED"), (timed_out, "TIMEOUT"),
+                                      (failed, "ERROR"), (cancelled, "CANCELLED")]},
         },
     }
 
@@ -121,7 +134,7 @@ def build():
         "requestId.$": "$.persistedInvoke.Payload.requestId", "batch.$": "$.batchInvoke.Payload"},
         callback=True, timeout=86400,
         catches=[
-            {"ErrorEquals": ["States.Timeout"], "Next": "PrepareNextBatch"},
+            {"ErrorEquals": ["States.Timeout"], "ResultPath": None, "Next": "PrepareNextBatch"},
             {"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "WorkflowFailed"},
         ])
     s["AcceptanceDecision"] = choice([
@@ -141,7 +154,7 @@ def build():
         "requestId.$": "$.persistedInvoke.Payload.requestId", "challengeId.$": "$.otpInvoke.Payload.challengeId"},
         callback=True, timeout=900,
         catches=[
-            {"ErrorEquals": ["States.Timeout"], "Next": "AwaitReassignmentApproval"},
+            {"ErrorEquals": ["States.Timeout"], "ResultPath": None, "Next": "AwaitReassignmentApproval"},
             {"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "WorkflowFailed"},
         ])
     s["OtpDecision"] = choice([
@@ -151,7 +164,7 @@ def build():
     s["AwaitReassignmentApproval"] = task("registerAdminReassignment", "CallbackRegistrationLambdaArn", "ReassignmentDecision", "$.reassignment", {
         "requestId.$": "$.persistedInvoke.Payload.requestId"}, callback=True, timeout=604800,
         catches=[
-            {"ErrorEquals": ["States.Timeout"], "Next": "ManualReview"},
+            {"ErrorEquals": ["States.Timeout"], "ResultPath": None, "Next": "ManualReview"},
             {"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "WorkflowFailed"},
         ])
     s["ReassignmentDecision"] = choice([
@@ -160,44 +173,74 @@ def build():
     ], "MalformedCallback")
     s["MarkInProgress"] = task("markInProgressIfActiveAndVerified", "LifecycleLambdaArn", "CheckInProgress", "$.progressInvoke", {
         "requestId.$": "$.persistedInvoke.Payload.requestId", "challengeId.$": "$.otpInvoke.Payload.challengeId",
-        "verification.$": "$.otpVerification"})
+        "verification": {"verified.$": "$.otpVerification.verified"}})
     s["CheckInProgress"] = choice([
-        rule("$.progressInvoke.Payload.updated", "BooleanEquals", True, "AwaitWorkCompletion"),
-        rule("$.progressInvoke.Payload.terminal", "BooleanEquals", True, "Terminated"),
+        guarded_rule("$.progressInvoke.Payload.terminal", "Boolean", True, "Terminated"),
+        guarded_rule("$.progressInvoke.Payload.updated", "Boolean", True, "EnterActiveWork"),
     ], "MalformedTransition")
+    s["EnterActiveWork"] = {"Type": "Pass", "Parameters": {
+        "requestId.$": "$.persistedInvoke.Payload.requestId"}, "Next": "AwaitWorkCompletion"}
     s["AwaitWorkCompletion"] = task("registerWorkCallback", "CallbackRegistrationLambdaArn", "WorkDecision", "$.work", {
-        "requestId.$": "$.persistedInvoke.Payload.requestId"}, callback=True, timeout=2592000,
+        "requestId.$": "$.requestId"}, callback=True, timeout=2592000,
         catches=[
-            {"ErrorEquals": ["States.Timeout"], "Next": "ManualReview"},
-            {"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "WorkflowFailed"},
+            {"ErrorEquals": ["States.Timeout"], "ResultPath": None, "Next": "ActiveWorkTimedOut"},
+            {"ErrorEquals": ["RequestTerminated"], "ResultPath": None, "Next": "WorkTerminated"},
+            {"ErrorEquals": ["States.ALL"], "ResultPath": None, "Next": "WorkflowFailed"},
         ])
     s["WorkDecision"] = choice([
-        rule("$.work.action", "StringEquals", "ADD_HELPERS", "AddHelpers"),
-        rule("$.work.action", "StringEquals", "DELEGATE", "DelegateOrganization"),
-        rule("$.work.action", "StringEquals", "COMPLETE", "MarkResolved"),
-        rule("$.work.action", "StringEquals", "CANCEL", "CancelByAdmin"),
+        {"And": [condition("$.work.decisionId", "IsString", True),
+                 condition("$.work.action", "IsString", True),
+                 condition("$.work.action", "StringEquals", action)],
+         "Next": destination}
+        for action, destination in [("ADD_HELPERS", "AddHelpers"), ("DELEGATE", "DelegateOrganization"),
+                                    ("COMPLETE", "MarkResolved"), ("CANCEL", "ConfirmWorkCancellation")]
     ], "MalformedCallback")
-    s["AddHelpers"] = task("addHelpersIfActive", "AssignmentLambdaArn", "AwaitWorkCompletion", "$.helpersInvoke", {
-        "requestId.$": "$.persistedInvoke.Payload.requestId", "volunteerIds.$": "$.work.volunteerIds"})
-    s["DelegateOrganization"] = task("delegateIfActive", "DelegationLambdaArn", "Delegated", "$.delegationInvoke", {
-        "requestId.$": "$.persistedInvoke.Payload.requestId", "organizationId.$": "$.work.organizationId"})
-    s["MarkResolved"] = task("resolveIfActive", "LifecycleLambdaArn", "CheckResolved", "$.resolutionInvoke", {
-        "requestId.$": "$.persistedInvoke.Payload.requestId"})
-    s["CheckResolved"] = choice([
-        rule("$.resolutionInvoke.Payload.updated", "BooleanEquals", True, "CollectRatings"),
-        rule("$.resolutionInvoke.Payload.terminal", "BooleanEquals", True, "Terminated"),
-    ], "MalformedTransition")
+    for name, operation, decision in [
+        ("AddHelpers", "addHelpersIfActive", "CheckHelpers"),
+        ("DelegateOrganization", "delegateIfActive", "CheckDelegation"),
+        ("MarkResolved", "resolveIfActive", "CheckResolved"),
+        ("ConfirmWorkCancellation", "confirmWorkCancellation", "CheckWorkCancellation"),
+    ]:
+        s[name] = task(operation, "FinalizationLambdaArn", decision, "$.finalization", {
+            "requestId.$": "$.requestId", "decisionId.$": "$.work.decisionId"},
+            catches=[{"ErrorEquals": ["States.ALL"], "ResultPath": None, "Next": "WorkflowFailed"}])
+    for name, outcomes in {
+        "CheckHelpers": {"HELPERS_ASSIGNED": "ResetActiveWork"},
+        "CheckDelegation": {"DELEGATION_UNAVAILABLE": "WorkIntegrationUnavailable"},
+        "CheckResolved": {"RESOLVED": "CollectRatings"},
+        "CheckWorkCancellation": {},
+    }.items():
+        s[name] = choice([
+            guarded_rule("$.finalization.Payload.outcome", "String", outcome, destination)
+            for outcome, destination in {
+                "TERMINATED": "WorkTerminated", "REJECTED": "WorkDecisionRejected",
+                "UNAVAILABLE": "WorkIntegrationUnavailable", **outcomes,
+            }.items()
+        ], "MalformedTransition")
+    s["ResetActiveWork"] = {"Type": "Pass", "Parameters": {"requestId.$": "$.requestId"},
+                            "Next": "AwaitWorkCompletion"}
     s["CollectRatings"] = {"Type": "Parallel", "Branches": [rating_branch("Requester"), rating_branch("Volunteer")],
-                           "ResultPath": "$.ratings", "Next": "Resolved"}
+                           "ResultPath": "$.ratings", "Next": "SummarizeRatings"}
+    s["SummarizeRatings"] = choice([
+        rule("$.ratings[0].outcome", "StringEquals", "CANCELLED", "RatingCollectionCancelled"),
+        rule("$.ratings[1].outcome", "StringEquals", "CANCELLED", "RatingCollectionCancelled"),
+    ], "Resolved")
+    for name, outcome in [("Resolved", "RESOLVED"), ("RatingCollectionCancelled", "TERMINATED")]:
+        s[name] = {"Type": "Pass", "Parameters": {"requestId.$": "$.requestId",
+                   "outcome": outcome, "ratings.$": "$.ratings"}, "End": True}
+    s["WorkTerminated"] = {"Type": "Pass", "Parameters": {"requestId.$": "$.requestId",
+                            "outcome": "TERMINATED"}, "End": True}
+    s["ActiveWorkTimedOut"] = task("queueManualReview", "ManualReviewLambdaArn", "ManualReviewQueued",
+                                   None, {"requestId.$": "$.requestId"})
     s["CancelByAdmin"] = task("cancelIfActive", "LifecycleLambdaArn", "Terminated", "$.cancelInvoke", {
         "requestId.$": "$.persistedInvoke.Payload.requestId"})
     s["ManualReview"] = task("queueManualReview", "ManualReviewLambdaArn", "ManualReviewQueued", "$.reviewInvoke", {
         "requestId.$": "$.persistedInvoke.Payload.requestId"})
-    for name in ["FlaggedForReview", "ManualReviewQueued", "Terminated", "Delegated", "Resolved"]:
+    for name in ["FlaggedForReview", "ManualReviewQueued", "Terminated"]:
         s[name] = {"Type": "Succeed"}
     for name in ["InvalidSubmission", "MalformedClassification", "MalformedPersistence", "InvalidRequestType",
                  "MalformedMatch", "MalformedBatch", "MalformedCallback", "MalformedAssignment", "MalformedTransition",
-                 "WorkflowFailed"]:
+                 "WorkflowFailed", "WorkDecisionRejected", "WorkIntegrationUnavailable"]:
         s[name] = {"Type": "Fail", "Error": name, "Cause": "Workflow input, task output, or dependency failed"}
     return {"Comment": "Issue 88 verified-diagram contract; blocked integrations are explicit", "StartAt": "ValidateSubmission",
             "TimeoutSeconds": 7776000, "States": s}

@@ -6,13 +6,16 @@ import org.sfa.request.response.PagedResponse;
 import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.dto.RequestSummaryDTO;
 import org.sfa.request.dto.RequestTypeDTO;
+import org.sfa.request.dto.VolunteerAssignmentDTO;
 import org.sfa.request.exception.types.ConflictException;
 import org.sfa.request.exception.types.EnumUnspecifiedException;
 import org.sfa.request.exception.types.InvalidRequestException;
 import org.sfa.request.exception.types.NotFoundException;
 import org.sfa.request.model.entity.*;
+import org.sfa.request.model.enums.MatchingRoute;
 import org.sfa.request.model.enums.RequestStatusEnum;
 import org.sfa.request.model.enums.RequestTypeEnum;
+import org.sfa.request.model.enums.VolunteerAssignmentTypeEnum;
 import org.sfa.request.repository.*;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
@@ -125,6 +128,24 @@ public class RequestServiceImpl implements RequestService {
         }
 
         logger.info("Created request with ID: {}", savedRequest.getRequestId());
+
+        // Issue #94: when the creator answered "Yes" to "Lead Volunteer?", they lead the
+        // request themselves. Volunteer matching is skipped, the creator is recorded as
+        // the LEAD volunteer, and the request goes straight on to Part 3 (In Progress).
+        if (MatchingRouter.route(savedRequest) == MatchingRoute.SELF_LEAD) {
+            volunteerAssignmentService.assignVolunteer(
+                    requesterId,
+                    savedRequest.getRequestId(),
+                    new VolunteerAssignmentDTO(requesterId, VolunteerAssignmentTypeEnum.LEAD),
+                    locale);
+            volunteerAssignmentService.populateAssignments(savedRequest);
+            logger.info("Request {} is led by its creator; volunteer matching skipped",
+                    savedRequest.getRequestId());
+
+            String message = messageSource.getMessage("success.requestCreated", new Object[]{savedRequest.getRequestId()}, locale);
+            return SaayamResponse.success(SaayamStatusCode.REQUEST_CREATED, message, savedRequest);
+        }
+
         // Populate before enqueueing, so the request handed to the notification already
         // carries its lead/helping volunteers.
         volunteerAssignmentService.populateAssignments(savedRequest);

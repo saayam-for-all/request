@@ -130,20 +130,14 @@ public class RequestServiceImpl implements RequestService {
         logger.info("Created request with ID: {}", savedRequest.getRequestId());
 
         // Issue #94: when the creator answered "Yes" to "Lead Volunteer?", they lead the
-        // request themselves. Volunteer matching is skipped, the creator is recorded as
-        // the LEAD volunteer, and the request goes straight on to Part 3 (In Progress).
+        // request themselves, so they are recorded as the LEAD volunteer here.
         if (MatchingRouter.route(savedRequest) == MatchingRoute.SELF_LEAD) {
             volunteerAssignmentService.assignVolunteer(
                     requesterId,
                     savedRequest.getRequestId(),
                     new VolunteerAssignmentDTO(requesterId, VolunteerAssignmentTypeEnum.LEAD),
                     locale);
-            volunteerAssignmentService.populateAssignments(savedRequest);
-            logger.info("Request {} is led by its creator; volunteer matching skipped",
-                    savedRequest.getRequestId());
-
-            String message = messageSource.getMessage("success.requestCreated", new Object[]{savedRequest.getRequestId()}, locale);
-            return SaayamResponse.success(SaayamStatusCode.REQUEST_CREATED, message, savedRequest);
+            logger.info("Request {} is led by its creator", savedRequest.getRequestId());
         }
 
         // Populate before enqueueing, so the request handed to the notification already
@@ -153,6 +147,8 @@ public class RequestServiceImpl implements RequestService {
         // Notify matched volunteers. Fires after the transaction commits, so a
         // notification is only ever sent for a request that actually persisted, and a
         // notification failure can never roll back or fail request creation.
+        // Self-led requests go through here too, so the sentiment check still runs on
+        // them; volunteer matching returns nobody for them, so no alert is sent.
         notificationEventService.enqueueRequestEvent(
                 NotificationEventType.REQUEST_CREATED, savedRequest, locale);
 

@@ -114,12 +114,16 @@ class RequestServiceImplSelfLeadTest {
         assertEquals(VolunteerAssignmentTypeEnum.LEAD, assignment.getValue().getVolunteerType());
     }
 
-    /** No volunteers are notified: the creator is already the lead. */
+    /**
+     * Self-led requests still go through the notification flow, so the sentiment check
+     * runs on them like on every other request. No alert is sent, because volunteer
+     * matching returns nobody for a self-led request (see SelfLeadNotificationFlowTest).
+     */
     @Test
-    void selfLeadRequestSkipsVolunteerMatching() {
+    void selfLeadRequestStillGoesThroughTheSentimentCheck() {
         service.createRequest(REQUESTER_ID, requestDTO(LEAD_YES, true), Locale.US);
 
-        verify(notificationEventService, never()).enqueueRequestEvent(any(), any(), any());
+        verify(notificationEventService).enqueueRequestEvent(any(), any(), eq(Locale.US));
     }
 
     @Test

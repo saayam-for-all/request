@@ -4,7 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.sfa.request.dto.notification.NotificationChannel;
 import org.sfa.request.dto.notification.NotificationRecipient;
 import org.sfa.request.model.entity.Request;
-import org.sfa.request.model.enums.RequestTypeEnum;
+import org.sfa.request.model.enums.MatchingRoute;
 import org.sfa.request.repository.VolunteerMatchRepository;
 import org.sfa.request.repository.projection.MatchedVolunteerRow;
 import org.sfa.request.service.api.VolunteerMatchService;
@@ -29,11 +29,13 @@ import java.util.List;
  *   <li><b>UNSPECIFIED / absent</b> — falls back to skill matching. Skills are the
  *       broader and safer signal: a volunteer who lacks the skill cannot help
  *       remotely or in person, whereas proximity alone says nothing about fitness.</li>
+ *   <li><b>IN_PERSON + calamity</b> (issue #94) — volunteers in a ring around the help
+ *       location, skipping the inner zone where volunteers are likely affected too.</li>
+ *   <li><b>Creator is the lead volunteer</b> (issue #94) — nobody is matched; the
+ *       creator is assigned as lead when the request is created.</li>
  * </ul>
  *
- * <p>Routing keys off {@code requestTypeId} rather than the {@code type} field
- * because that field is a typed enum on one lineage and a String on the other,
- * while the id is an Integer on both.
+ * <p>Which path applies is decided by {@link MatchingRouter}.
  *
  * <p>Every matched volunteer gets an IN_APP recipient. Volunteers with an email
  * address on file also get an EMAIL recipient. A volunteer with no email is still
@@ -51,30 +53,69 @@ public class VolunteerMatchServiceImpl implements VolunteerMatchService {
     /** Cap on volunteers notified for one in-person request (ba#40 D6). */
     private final int inPersonMaxVolunteers;
 
+    /** Calamity requests: volunteers closer than this are skipped, in metres (default 2 mi). */
+    private final double calamityExclusionRadiusMeters;
+
+    /** Calamity requests: volunteers farther than this are skipped, in metres (default 5 mi). */
+    private final double calamityOuterRadiusMeters;
+
     public VolunteerMatchServiceImpl(
             VolunteerMatchRepository volunteerMatchRepository,
             @Value("${saayam.matching.in-person.radius-meters:25000}") double inPersonRadiusMeters,
-            @Value("${saayam.matching.in-person.max-volunteers:25}") int inPersonMaxVolunteers) {
+            @Value("${saayam.matching.in-person.max-volunteers:25}") int inPersonMaxVolunteers,
+            @Value("${saayam.matching.calamity.exclusion-radius-meters:3218.69}") double calamityExclusionRadiusMeters,
+            @Value("${saayam.matching.calamity.outer-radius-meters:8046.72}") double calamityOuterRadiusMeters) {
+        if (calamityExclusionRadiusMeters < 0 || calamityOuterRadiusMeters <= calamityExclusionRadiusMeters) {
+            // Fail at startup rather than silently matching nobody on every calamity.
+            throw new IllegalArgumentException(
+                    "saayam.matching.calamity radii must satisfy 0 <= exclusion-radius < outer-radius, got "
+                            + calamityExclusionRadiusMeters + " and " + calamityOuterRadiusMeters);
+        }
         this.volunteerMatchRepository = volunteerMatchRepository;
         this.inPersonRadiusMeters = inPersonRadiusMeters;
         this.inPersonMaxVolunteers = inPersonMaxVolunteers;
+        this.calamityExclusionRadiusMeters = calamityExclusionRadiusMeters;
+        this.calamityOuterRadiusMeters = calamityOuterRadiusMeters;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<NotificationRecipient> resolveMatchedVolunteerRecipients(Request request) {
-        if (isInPerson(request)) {
-            return toRecipients(request, matchByProximity(request), "proximity");
-        }
-        return toRecipients(request, matchBySkill(request), "skill");
+        MatchingRoute route = MatchingRouter.route(request);
+        return switch (route) {
+            case SELF_LEAD -> {
+                // The creator leads this request, so nobody else is asked to help.
+                log.info("Request {} is led by its creator; skipping volunteer matching",
+                        request.getRequestId());
+                yield List.of();
+            }
+            case CALAMITY -> toRecipients(request, matchCalamityRing(request), "calamity ring");
+            case IN_PERSON -> toRecipients(request, matchByProximity(request), "proximity");
+            case REMOTE -> toRecipients(request, matchBySkill(request), "skill");
+        };
     }
 
-    private boolean isInPerson(Request request) {
-        if (request.getRequestType() == null) {
-            return false;
+    /**
+     * In-person calamity: volunteers in the ring between the exclusion and outer radii,
+     * centred on the help location. An empty result is not widened. The caller records
+     * the no-match, which leads to VOLUNTEER_NOT_FOUND and manual review.
+     */
+    private List<MatchedVolunteerRow> matchCalamityRing(Request request) {
+        boolean allowRequesterFallback = !MatchingRouter.isForSomeoneElse(request);
+
+        List<MatchedVolunteerRow> matches = volunteerMatchRepository.findVolunteersInRingAroundRequest(
+                request.getRequestId(),
+                request.getRequesterId(),
+                allowRequesterFallback,
+                calamityExclusionRadiusMeters,
+                calamityOuterRadiusMeters,
+                inPersonMaxVolunteers);
+
+        if (matches.isEmpty()) {
+            log.info("No volunteers between {}m and {}m for calamity request {}",
+                    calamityExclusionRadiusMeters, calamityOuterRadiusMeters, request.getRequestId());
         }
-        Integer typeId = request.getRequestType().getRequestTypeId();
-        return typeId != null && typeId == RequestTypeEnum.IN_PERSON.getId();
+        return matches;
     }
 
     /**

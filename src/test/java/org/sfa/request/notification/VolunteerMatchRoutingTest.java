@@ -43,7 +43,7 @@ class VolunteerMatchRoutingTest {
     @BeforeEach
     void setUp() {
         repository = mock(VolunteerMatchRepository.class);
-        service = new VolunteerMatchServiceImpl(repository, RADIUS_METERS, MAX_VOLUNTEERS);
+        service = new VolunteerMatchServiceImpl(repository, RADIUS_METERS, MAX_VOLUNTEERS, 3218.69, 8046.72);
     }
 
     /**
@@ -157,7 +157,7 @@ class VolunteerMatchRoutingTest {
     /** The configured radius and cap are what reach the query, not hard-coded values. */
     @Test
     void proximitySearchUsesTheConfiguredRadiusAndCap() {
-        VolunteerMatchServiceImpl tuned = new VolunteerMatchServiceImpl(repository, 500.0, 3);
+        VolunteerMatchServiceImpl tuned = new VolunteerMatchServiceImpl(repository, 500.0, 3, 3218.69, 8046.72);
         when(repository.findVolunteersNearRequester(anyString(), anyDouble(), anyInt()))
                 .thenReturn(List.of());
 

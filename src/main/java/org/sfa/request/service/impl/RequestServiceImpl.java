@@ -6,13 +6,16 @@ import org.sfa.request.response.PagedResponse;
 import org.sfa.request.dto.RequestDTO;
 import org.sfa.request.dto.RequestSummaryDTO;
 import org.sfa.request.dto.RequestTypeDTO;
+import org.sfa.request.dto.VolunteerAssignmentDTO;
 import org.sfa.request.exception.types.ConflictException;
 import org.sfa.request.exception.types.EnumUnspecifiedException;
 import org.sfa.request.exception.types.InvalidRequestException;
 import org.sfa.request.exception.types.NotFoundException;
 import org.sfa.request.model.entity.*;
+import org.sfa.request.model.enums.MatchingRoute;
 import org.sfa.request.model.enums.RequestStatusEnum;
 import org.sfa.request.model.enums.RequestTypeEnum;
+import org.sfa.request.model.enums.VolunteerAssignmentTypeEnum;
 import org.sfa.request.repository.*;
 import org.sfa.request.response.SaayamResponse;
 import lombok.RequiredArgsConstructor;
@@ -125,6 +128,18 @@ public class RequestServiceImpl implements RequestService {
         }
 
         logger.info("Created request with ID: {}", savedRequest.getRequestId());
+
+        // Issue #94: when the creator answered "Yes" to "Lead Volunteer?", they lead the
+        // request themselves, so they are recorded as the LEAD volunteer here.
+        if (MatchingRouter.route(savedRequest) == MatchingRoute.SELF_LEAD) {
+            volunteerAssignmentService.assignVolunteer(
+                    requesterId,
+                    savedRequest.getRequestId(),
+                    new VolunteerAssignmentDTO(requesterId, VolunteerAssignmentTypeEnum.LEAD),
+                    locale);
+            logger.info("Request {} is led by its creator", savedRequest.getRequestId());
+        }
+
         // Populate before enqueueing, so the request handed to the notification already
         // carries its lead/helping volunteers.
         volunteerAssignmentService.populateAssignments(savedRequest);
@@ -132,6 +147,8 @@ public class RequestServiceImpl implements RequestService {
         // Notify matched volunteers. Fires after the transaction commits, so a
         // notification is only ever sent for a request that actually persisted, and a
         // notification failure can never roll back or fail request creation.
+        // Self-led requests go through here too, so the sentiment check still runs on
+        // them; volunteer matching returns nobody for them, so no alert is sent.
         notificationEventService.enqueueRequestEvent(
                 NotificationEventType.REQUEST_CREATED, savedRequest, locale);
 

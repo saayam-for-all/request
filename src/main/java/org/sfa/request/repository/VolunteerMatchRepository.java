@@ -85,4 +85,64 @@ public interface VolunteerMatchRepository extends JpaRepository<Request, String>
     List<MatchedVolunteerRow> findVolunteersNearRequester(@Param("requesterId") String requesterId,
                                                           @Param("radiusMeters") double radiusMeters,
                                                           @Param("maxResults") int maxResults);
+
+    /**
+     * Ring search, used for in-person CALAMITY requests (issue #94).
+     *
+     * <p>Volunteers very close to a calamity are probably affected by it too, so this
+     * skips everyone within {@code minMeters} of the help location and returns volunteers
+     * where {@code minMeters <= distance <= maxMeters}, nearest first. Both edges count,
+     * matching the spatial service's {@code min_radius <= distance <= max_radius} rule.
+     *
+     * <p>Search centre, in order:
+     * <ol>
+     *   <li>{@code requests.req_loc}: the help location picked on the request form. In
+     *       the live database it is {@code geometry(Point,4326)}. It is cast to
+     *       {@code geography} so distances are in metres, not degrees.</li>
+     *   <li>The requester's own saved location, but only when
+     *       {@code allowRequesterFallback} is true (a request for themselves). For a
+     *       request made on behalf of someone else the requester may be far from where
+     *       help is needed, so nothing is returned and the request goes to
+     *       VOLUNTEER_NOT_FOUND for manual review.</li>
+     * </ol>
+     *
+     * <p>Reads the {@code requests} table, which is the live table name, rather than
+     * {@code request}, which the {@code Request} entity on dev still uses (issue #78).
+     */
+    @Query(value = """
+            WITH anchor AS (
+                SELECT COALESCE(
+                    (SELECT r.req_loc::geography
+                       FROM virginia_dev_saayam_rdbms.requests r
+                      WHERE r.req_id = :requestId),
+                    CASE WHEN :allowRequesterFallback THEN
+                        (SELECT ul.curr_loc
+                           FROM virginia_dev_saayam_rdbms.user_locations ul
+                          WHERE ul.user_id = :requesterId)
+                    END
+                ) AS loc
+            )
+            SELECT u.user_id               AS "userId",
+                   u.primary_email_address AS "emailAddress",
+                   u.primary_phone_number  AS "phoneNumber"
+            FROM anchor a
+            JOIN virginia_dev_saayam_rdbms.volunteer_locations vl
+                   ON ST_DWithin(vl.curr_loc, a.loc, :maxMeters)
+            JOIN virginia_dev_saayam_rdbms.users u
+                   ON u.user_id = vl.user_id
+            JOIN virginia_dev_saayam_rdbms.volunteer_details vd
+                   ON vd.user_id = vl.user_id
+            WHERE a.loc IS NOT NULL
+              AND vl.curr_loc IS NOT NULL
+              AND ST_Distance(vl.curr_loc, a.loc) >= :minMeters
+              AND u.user_id <> :requesterId
+            ORDER BY ST_Distance(vl.curr_loc, a.loc), u.user_id
+            LIMIT :maxResults
+            """, nativeQuery = true)
+    List<MatchedVolunteerRow> findVolunteersInRingAroundRequest(@Param("requestId") String requestId,
+                                                                @Param("requesterId") String requesterId,
+                                                                @Param("allowRequesterFallback") boolean allowRequesterFallback,
+                                                                @Param("minMeters") double minMeters,
+                                                                @Param("maxMeters") double maxMeters,
+                                                                @Param("maxResults") int maxResults);
 }

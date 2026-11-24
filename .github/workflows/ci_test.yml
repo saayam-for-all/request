@@ -1,0 +1,70 @@
+name: Java CI with Maven
+
+on:
+  push:
+    branches: ["dev", "test", "main"]
+  pull_request:
+    branches: ["dev", "test", "main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: request_test
+          POSTGRES_USER: request_test
+          POSTGRES_PASSWORD: request_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U request_test -d request_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_DEV_HOST_URL: jdbc:postgresql://localhost:5432/request_test
+      DB_DEV_USERNAME: request_test
+      DB_DEV_PASSWORD: request_test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: "17"
+          distribution: temurin
+          cache: maven
+
+
+      - name: Run tests and generate coverage report
+        run: ./mvnw -B clean verify
+
+      - name: Upload Maven test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maven-test-results
+          path: target/surefire-reports/
+          if-no-files-found: ignore
+
+      - name: Upload JaCoCo coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-coverage-report
+          path: target/site/jacoco/
+          if-no-files-found: warn
+
+      - name: Build Docker image
+        if: success()
+        run: |
+          docker build \
+            -t request:${{ github.sha }} \
+            .
+          echo "Docker image built successfully"

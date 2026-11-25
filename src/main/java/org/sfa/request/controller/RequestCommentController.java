@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.Locale;
 
 @RestController
-@RequestMapping("/api/v1.0.0/requests/comments")
+@RequestMapping("/comments")
 @RequiredArgsConstructor
 public class RequestCommentController {
 

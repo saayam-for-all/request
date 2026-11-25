@@ -1,6 +1,6 @@
 package org.sfa.request.requesthandler;
 
-// AWS Lambda
+
 import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
 import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
@@ -11,10 +11,7 @@ import org.sfa.request.service.api.HelpCategoryService;
 import org.sfa.request.service.api.MetadataService;
 
 // DTOs and Response
-import org.sfa.request.dto.CommentRequestDTO;
-import org.sfa.request.dto.RequestCommentDTO;
 import org.sfa.request.dto.RequestDTO;
-import org.sfa.request.dto.RequesterDTO;
 import org.sfa.request.response.SaayamResponse;
 import org.sfa.request.model.entity.Request;
 
@@ -55,12 +52,6 @@ public class RequestDispatcherHandler extends BaseRequestHandler<APIGatewayProxy
             path = path.replaceFirst("^/dev", "");
             path = path.replaceFirst("^/requests/v0.0.1", "/api");
 
-            if (path.equals("/comments")) {
-                path = "/api/requests/comments";
-            } else if (path.equals("/comments/list")) {
-                path = "/api/requests/comments/list";
-            }
-
             log.info(
                     "Incoming request: normalizedPath={}, method={}, rawEvent={}",
                     path,
@@ -70,36 +61,15 @@ public class RequestDispatcherHandler extends BaseRequestHandler<APIGatewayProxy
 
             Locale locale = getLocaleFromRequest(event);
 
-            // -------------------- COMMENTS --------------------
 
-            if (path.equals("/api/requests/comments")
-                    && method.equalsIgnoreCase("POST")) {
-                return handleAddComment(event, locale);
-            }
 
-            if (path.equals("/api/requests/comments/list")
-                    && method.equalsIgnoreCase("POST")) {
-                return handleGetComments(event, locale);
-            }
-
-            if (path.equals("/api/requests/comments")
-                    && method.equalsIgnoreCase("PUT")) {
-                return handleUpdateComment(event, locale);
-            }
-
-            if (path.equals("/api/requests/comments")
-                    && method.equalsIgnoreCase("DELETE")) {
-                return handleDeleteComment(event, locale);
-            }
-
-            // -------------------- REQUEST --------------------
+            
 
             if (path.matches("/api/requests/.+")
                     && method.equalsIgnoreCase("POST")) {
                 return handleCreateRequest(event, locale);
             }
 
-            // -------------------- HELP CATEGORIES --------------------
 
             if (path.equals("/api/helpCategories")
                     && method.equalsIgnoreCase("GET")) {
@@ -161,7 +131,7 @@ public class RequestDispatcherHandler extends BaseRequestHandler<APIGatewayProxy
                 );
             }
 
-            // -------------------- METADATA --------------------
+
 
             if (path.equals("/api/metadata")
                     && method.equalsIgnoreCase("GET")) {
@@ -221,221 +191,15 @@ public class RequestDispatcherHandler extends BaseRequestHandler<APIGatewayProxy
         }
     }
 
-    // -------------------- COMMENTS METHODS --------------------
 
-    private APIGatewayProxyResponseEvent handleAddComment(
-            APIGatewayProxyRequestEvent event,
-            Locale locale) throws Exception {
 
-        CommentRequestDTO body =
-                objectMapper.readValue(
-                        event.getBody(),
-                        CommentRequestDTO.class
-                );
 
-        if (body.getRequesterId() == null
-                || body.getRequesterId().isBlank()) {
 
-            return createErrorResponse(
-                    400,
-                    SaayamStatusCode.BAD_REQUEST,
-                    "Missing requesterId in request body"
-            );
-        }
 
-        if (body.getRequestId() == null
-                || body.getRequestId().isBlank()) {
 
-            return createErrorResponse(
-                    400,
-                    SaayamStatusCode.BAD_REQUEST,
-                    "Missing requestId in request body"
-            );
-        }
 
-        if (body.getComment() == null
-                || body.getComment().isBlank()) {
 
-            return createErrorResponse(
-                    400,
-                    SaayamStatusCode.BAD_REQUEST,
-                    "Missing comment in request body"
-            );
-        }
 
-        RequestCommentDTO commentDTO =
-                RequestCommentDTO.builder()
-                        .comment(body.getComment())
-                        .build();
-
-        RequestCommentDTO response =
-                requestService.addComment(
-                        body.getRequesterId(),
-                        body.getRequestId(),
-                        commentDTO,
-                        locale
-                );
-
-        return createResponse(
-                201,
-                SaayamResponse.success(
-                        SaayamStatusCode.REQUEST_CREATED,
-                        "Comment added successfully",
-                        response
-                )
-        );
-    }
-
-    private APIGatewayProxyResponseEvent handleGetComments(
-            APIGatewayProxyRequestEvent event,
-            Locale locale) throws Exception {
-
-        RequesterDTO body =
-                objectMapper.readValue(
-                        event.getBody(),
-                        RequesterDTO.class
-                );
-
-        if (body.getRequesterId() == null
-                || body.getRequesterId().isBlank()) {
-
-            return createErrorResponse(
-                    400,
-                    SaayamStatusCode.BAD_REQUEST,
-                    "Missing requesterId in request body"
-            );
-        }
-
-        if (body.getRequestId() == null
-                || body.getRequestId().isBlank()) {
-
-            return createErrorResponse(
-                    400,
-                    SaayamStatusCode.BAD_REQUEST,
-                    "Missing requestId in request body"
-            );
-        }
-
-        return createResponse(
-                200,
-                SaayamResponse.success(
-                        SaayamStatusCode.SUCCESS,
-                        "Comments fetched successfully",
-                        requestService.getComments(
-                                body.getRequesterId(),
-                                body.getRequestId(),
-                                locale
-                        )
-                )
-        );
-    }
-
-    private APIGatewayProxyResponseEvent handleUpdateComment(
-            APIGatewayProxyRequestEvent event,
-            Locale locale) throws Exception {
-
-        CommentRequestDTO body =
-                objectMapper.readValue(
-                        event.getBody(),
-                        CommentRequestDTO.class
-                );
-
-        if (body.getRequesterId() == null
-                || body.getRequesterId().isBlank()) {
-
-            return createErrorResponse(
-                    400,
-                    SaayamStatusCode.BAD_REQUEST,
-                    "Missing requesterId in request body"
-            );
-        }
-
-        if (body.getCommentId() == null) {
-            return createErrorResponse(
-                    400,
-                    SaayamStatusCode.BAD_REQUEST,
-                    "Missing commentId in request body"
-            );
-        }
-
-        if (body.getComment() == null
-                || body.getComment().isBlank()) {
-
-            return createErrorResponse(
-                    400,
-                    SaayamStatusCode.BAD_REQUEST,
-                    "Missing comment in request body"
-            );
-        }
-
-        RequestCommentDTO commentDTO =
-                RequestCommentDTO.builder()
-                        .comment(body.getComment())
-                        .build();
-
-        RequestCommentDTO response =
-                requestService.updateComment(
-                        body.getRequesterId(),
-                        body.getCommentId(),
-                        commentDTO,
-                        locale
-                );
-
-        return createResponse(
-                200,
-                SaayamResponse.success(
-                        SaayamStatusCode.SUCCESS,
-                        "Comment updated successfully",
-                        response
-                )
-        );
-    }
-
-    private APIGatewayProxyResponseEvent handleDeleteComment(
-            APIGatewayProxyRequestEvent event,
-            Locale locale) throws Exception {
-
-        RequesterDTO body =
-                objectMapper.readValue(
-                        event.getBody(),
-                        RequesterDTO.class
-                );
-
-        if (body.getRequesterId() == null
-                || body.getRequesterId().isBlank()) {
-
-            return createErrorResponse(
-                    400,
-                    SaayamStatusCode.BAD_REQUEST,
-                    "Missing requesterId in request body"
-            );
-        }
-
-        if (body.getCommentId() == null) {
-            return createErrorResponse(
-                    400,
-                    SaayamStatusCode.BAD_REQUEST,
-                    "Missing commentId in request body"
-            );
-        }
-
-        requestService.deleteComment(
-                body.getRequesterId(),
-                body.getCommentId(),
-                locale
-        );
-
-        return createResponse(
-                200,
-                SaayamResponse.success(
-                        SaayamStatusCode.SUCCESS,
-                        "Comment deleted successfully",
-                        null
-                )
-        );
-    }
-
-    // -------------------- CREATE REQUEST --------------------
 
     private APIGatewayProxyResponseEvent handleCreateRequest(
             APIGatewayProxyRequestEvent event,
